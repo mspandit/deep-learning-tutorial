@@ -45,7 +45,7 @@ from theano.tensor.shared_randomstreams import RandomStreams
 from logistic_sgd import load_data
 from utils import tile_raster_images
 
-import PIL.Image
+import Image
 
 
 class dA(object):
@@ -306,7 +306,7 @@ def test_dA(learning_rate=0.1, training_epochs=15,
     print >> sys.stderr, ('The no corruption code for file ' +
                           os.path.split(__file__)[1] +
                           ' ran for %.2fm' % ((training_time) / 60.))
-    image = PIL.Image.fromarray(
+    image = Image.fromarray(
         tile_raster_images(X=da.W.get_value(borrow=True).T,
                            img_shape=(28, 28), tile_shape=(10, 10),
                            tile_spacing=(1, 1)))
@@ -352,7 +352,7 @@ def test_dA(learning_rate=0.1, training_epochs=15,
                           os.path.split(__file__)[1] +
                           ' ran for %.2fm' % (training_time / 60.))
 
-    image = PIL.Image.fromarray(tile_raster_images(
+    image = Image.fromarray(tile_raster_images(
         X=da.W.get_value(borrow=True).T,
         img_shape=(28, 28), tile_shape=(10, 10),
         tile_spacing=(1, 1)))
