@@ -3,23 +3,23 @@ This tutorial introduces logistic regression using Theano and stochastic
 gradient descent.
 
 Logistic regression is a probabilistic, linear classifier. It is parametrized
-by a weight matrix :math:`W` and a bias vector :math:`b`. Classification is
+by a weight matrix :math:`weights` and a bias vector :math:`biases`. Classification is
 done by projecting data points onto a set of hyperplanes, the distance to
 which is used to determine a class membership probability.
 
 Mathematically, this can be written as:
 
 .. math::
-  P(Y=i|x, W,b) &= softmax_i(W x + b) \\
-                &= \frac {e^{W_i x + b_i}} {\sum_j e^{W_j x + b_j}}
+  P(Y=i|input, weights,biases) &= softmax_i(weights input + biases) \\
+                &= \frac {e^{weights_i input + biases_i}} {\sum_j e^{weights_j input + biases_j}}
 
 
 The output of the model or prediction is then done by taking the argmax of
-the vector whose i'th element is P(Y=i|x).
+the vector whose i'th element is P(Y=i|input).
 
 .. math::
 
-  y_{pred} = argmax_i P(Y=i|x,W,b)
+  output_{pred} = argmax_i P(Y=i|input,weights,biases)
 
 
 This tutorial presents a stochastic gradient descent optimization method
@@ -50,8 +50,8 @@ import theano.tensor as Tensor
 class LogisticRegression(object):
     """Multi-class Logistic Regression Class
 
-    The logistic regression is fully described by a weight matrix :math:`W`
-    and bias vector :math:`b`. Classification is done by projecting data
+    The logistic regression is fully described by a weight matrix :math:`weights`
+    and bias vector :math:`biases`. Classification is done by projecting data
     points onto a set of hyperplanes, the distance to which is used to
     determine a class membership probability.
     """
@@ -73,73 +73,73 @@ class LogisticRegression(object):
 
         """
 
-        # initialize with 0 the weights W as a matrix of shape (n_in, n_out)
-        self.W = theano.shared(value=numpy.zeros((n_in, n_out),
+        # initialize with 0 the weights as a matrix of shape (n_in, n_out)
+        self.weights = theano.shared(value=numpy.zeros((n_in, n_out),
                                                  dtype=theano.config.floatX),
-                                name='W', borrow=True)
-        # initialize the baises b as a vector of n_out 0s
-        self.b = theano.shared(value=numpy.zeros((n_out,),
+                                name='weights', borrow=True)
+        # initialize the biases as a vector of n_out 0s
+        self.biases = theano.shared(value=numpy.zeros((n_out,),
                                                  dtype=theano.config.floatX),
-                               name='b', borrow=True)
+                               name='biases', borrow=True)
 
         # compute vector of class-membership probabilities in symbolic form
-        self.p_y_given_x = Tensor.nnet.softmax(Tensor.dot(input, self.W) + self.b)
+        self.p_output_given_input = Tensor.nnet.softmax(Tensor.dot(input, self.weights) + self.biases)
 
         # compute prediction as class whose probability is maximal in
         # symbolic form
-        self.y_pred = Tensor.argmax(self.p_y_given_x, axis=1)
+        self.output_pred = Tensor.argmax(self.p_output_given_input, axis=1)
 
         # parameters of the model
-        self.params = [self.W, self.b]
+        self.params = [self.weights, self.biases]
 
-    def negative_log_likelihood(self, y):
+    def negative_log_likelihood(self, output):
         """Return the mean of the negative log-likelihood of the prediction
         of this model under a given target distribution.
 
         .. math::
 
-            \frac{1}{|\mathcal{D}|} \mathcal{L} (\theta=\{W,b\}, \mathcal{D}) =
-            \frac{1}{|\mathcal{D}|} \sum_{i=0}^{|\mathcal{D}|} \log(P(Y=y^{(i)}|x^{(i)}, W,b)) \\
-                \ell (\theta=\{W,b\}, \mathcal{D})
+            \frac{1}{|\mathcal{D}|} \mathcal{L} (\theta=\{weights,biases\}, \mathcal{D}) =
+            \frac{1}{|\mathcal{D}|} \sum_{i=0}^{|\mathcal{D}|} \log(P(Y=output^{(i)}|input^{(i)}, weights,biases)) \\
+                \ell (\theta=\{weights,biases\}, \mathcal{D})
 
-        :type y: theano.tensor.TensorType
-        :param y: corresponds to a vector that gives for each example the
+        :type output: theano.tensor.TensorType
+        :param output: corresponds to a vector that gives for each example the
                   correct label
 
         Note: we use the mean instead of the sum so that
               the learning rate is less dependent on the batch size
         """
-        # y.shape[0] is (symbolically) the number of rows in y, i.e.,
+        # output.shape[0] is (symbolically) the number of rows in output, i.e.,
         # number of examples (call it n) in the minibatch
-        # Tensor.arange(y.shape[0]) is a symbolic vector which will contain
-        # [0,1,2,... n-1] Tensor.log(self.p_y_given_x) is a matrix of
+        # Tensor.arange(output.shape[0]) is a symbolic vector which will contain
+        # [0,1,2,... n-1] Tensor.log(self.p_output_given_input) is a matrix of
         # Log-Probabilities (call it LP) with one row per example and
-        # one column per class LP[Tensor.arange(y.shape[0]),y] is a vector
-        # v containing [LP[0,y[0]], LP[1,y[1]], LP[2,y[2]], ...,
-        # LP[n-1,y[n-1]]] and Tensor.mean(LP[Tensor.arange(y.shape[0]),y]) is
+        # one column per class LP[Tensor.arange(output.shape[0]),output] is a vector
+        # v containing [LP[0,output[0]], LP[1,output[1]], LP[2,output[2]], ...,
+        # LP[n-1,output[n-1]]] and Tensor.mean(LP[Tensor.arange(output.shape[0]),output]) is
         # the mean (across minibatch examples) of the elements in v,
         # i.e., the mean log-likelihood across the minibatch.
-        return -Tensor.mean(Tensor.log(self.p_y_given_x)[Tensor.arange(y.shape[0]), y])
+        return -Tensor.mean(Tensor.log(self.p_output_given_input)[Tensor.arange(output.shape[0]), output])
 
-    def errors(self, y):
+    def errors(self, output):
         """Return a float representing the number of errors in the minibatch
         over the total number of examples of the minibatch ; zero one
         loss over the size of the minibatch
 
-        :type y: theano.tensor.TensorType
-        :param y: corresponds to a vector that gives for each example the
+        :type output: theano.tensor.TensorType
+        :param output: corresponds to a vector that gives for each example the
                   correct label
         """
 
-        # check if y has same dimension of y_pred
-        if y.ndim != self.y_pred.ndim:
-            raise TypeError('y should have the same shape as self.y_pred',
-                ('y', target.type, 'y_pred', self.y_pred.type))
-        # check if y is of the correct datatype
-        if y.dtype.startswith('int'):
+        # check if output has same dimension of output_pred
+        if output.ndim != self.output_pred.ndim:
+            raise TypeError('output should have the same shape as self.output_pred',
+                ('output', target.type, 'output_pred', self.output_pred.type))
+        # check if output is of the correct datatype
+        if output.dtype.startswith('int'):
             # the Tensor.neq operator returns a vector of 0s and 1s, where 1
             # represents a mistake in prediction
-            return Tensor.mean(Tensor.neq(self.y_pred, y))
+            return Tensor.mean(Tensor.neq(self.output_pred, output))
         else:
             raise NotImplementedError()
 
@@ -182,7 +182,7 @@ def load_data(dataset):
     #the number of rows in the input. It should give the target
     #target to the example with the same index in the input.
 
-    def shared_dataset(data_xy, borrow=True):
+    def shared_dataset(data_inputoutput, borrow=True):
         """ Function that loads the dataset into shared variables
 
         The reason we store our dataset in shared variables is to allow
@@ -191,28 +191,28 @@ def load_data(dataset):
         is needed (the default behaviour if the data is not in a shared
         variable) would lead to a large decrease in performance.
         """
-        data_x, data_y = data_xy
-        shared_x = theano.shared(numpy.asarray(data_x,
+        data_input, data_output = data_inputoutput
+        shared_input = theano.shared(numpy.asarray(data_input,
                                                dtype=theano.config.floatX),
                                  borrow=borrow)
-        shared_y = theano.shared(numpy.asarray(data_y,
+        shared_output = theano.shared(numpy.asarray(data_output,
                                                dtype=theano.config.floatX),
                                  borrow=borrow)
         # When storing data on the GPU it has to be stored as floats
         # therefore we will store the labels as ``floatX`` as well
-        # (``shared_y`` does exactly that). But during our computations
+        # (``shared_output`` does exactly that). But during our computations
         # we need them as ints (we use labels as index, and if they are
         # floats it doesn't make sense) therefore instead of returning
-        # ``shared_y`` we will have to cast it to int. This little hack
+        # ``shared_output`` we will have to cast it to int. This little hack
         # lets ous get around this issue
-        return shared_x, Tensor.cast(shared_y, 'int32')
+        return shared_input, Tensor.cast(shared_output, 'int32')
 
-    test_set_x, test_set_y = shared_dataset(test_set)
-    valid_set_x, valid_set_y = shared_dataset(valid_set)
-    train_set_x, train_set_y = shared_dataset(train_set)
+    test_set_input, test_set_output = shared_dataset(test_set)
+    valid_set_input, valid_set_output = shared_dataset(valid_set)
+    train_set_input, train_set_output = shared_dataset(train_set)
 
-    rval = [(train_set_x, train_set_y), (valid_set_x, valid_set_y),
-            (test_set_x, test_set_y)]
+    rval = [(train_set_input, train_set_output), (valid_set_input, valid_set_output),
+            (test_set_input, test_set_output)]
     return rval
 
 
@@ -239,14 +239,14 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
     """
     datasets = load_data(dataset)
 
-    train_set_x, train_set_y = datasets[0]
-    valid_set_x, valid_set_y = datasets[1]
-    test_set_x, test_set_y = datasets[2]
+    train_set_input, train_set_output = datasets[0]
+    valid_set_input, valid_set_output = datasets[1]
+    test_set_input, test_set_output = datasets[2]
 
     # compute number of minibatches for training, validation and testing
-    n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
-    n_valid_batches = valid_set_x.get_value(borrow=True).shape[0] / batch_size
-    n_test_batches = test_set_x.get_value(borrow=True).shape[0] / batch_size
+    n_train_batches = train_set_input.get_value(borrow=True).shape[0] / batch_size
+    n_valid_batches = valid_set_input.get_value(borrow=True).shape[0] / batch_size
+    n_test_batches = test_set_input.get_value(borrow=True).shape[0] / batch_size
 
     ######################
     # BUILD ACTUAL MODEL #
@@ -255,40 +255,40 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
 
     # allocate symbolic variables for the data
     index = Tensor.lscalar()  # index to a [mini]batch
-    x = Tensor.matrix('x')  # the data is presented as rasterized images
-    y = Tensor.ivector('y')  # the labels are presented as 1D vector of
+    input = Tensor.matrix('input')  # the data is presented as rasterized images
+    output = Tensor.ivector('output')  # the labels are presented as 1D vector of
                            # [int] labels
 
     # construct the logistic regression class
     # Each MNIST image has size 28*28
-    classifier = LogisticRegression(input=x, n_in=28 * 28, n_out=10)
+    classifier = LogisticRegression(input=input, n_in=28 * 28, n_out=10)
 
     # the cost we minimize during training is the negative log likelihood of
     # the model in symbolic format
-    cost = classifier.negative_log_likelihood(y)
+    cost = classifier.negative_log_likelihood(output)
 
     # compiling a Theano function that computes the mistakes that are made by
     # the model on a minibatch
     test_model = theano.function(inputs=[index],
-            outputs=classifier.errors(y),
+            outputs=classifier.errors(output),
             givens={
-                x: test_set_x[index * batch_size: (index + 1) * batch_size],
-                y: test_set_y[index * batch_size: (index + 1) * batch_size]})
+                input: test_set_input[index * batch_size: (index + 1) * batch_size],
+                output: test_set_output[index * batch_size: (index + 1) * batch_size]})
 
     validate_model = theano.function(inputs=[index],
-            outputs=classifier.errors(y),
+            outputs=classifier.errors(output),
             givens={
-                x: valid_set_x[index * batch_size:(index + 1) * batch_size],
-                y: valid_set_y[index * batch_size:(index + 1) * batch_size]})
+                input: valid_set_input[index * batch_size:(index + 1) * batch_size],
+                output: valid_set_output[index * batch_size:(index + 1) * batch_size]})
 
-    # compute the gradient of cost with respect to theta = (W,b)
-    g_W = Tensor.grad(cost=cost, wrt=classifier.W)
-    g_b = Tensor.grad(cost=cost, wrt=classifier.b)
+    # compute the gradient of cost with respect to theta = (weights,biases)
+    g_weights = Tensor.grad(cost=cost, wrt=classifier.weights)
+    g_biases = Tensor.grad(cost=cost, wrt=classifier.biases)
 
     # specify how to update the parameters of the model as a list of
     # (variable, update expression) pairs.
-    updates = [(classifier.W, classifier.W - learning_rate * g_W),
-               (classifier.b, classifier.b - learning_rate * g_b)]
+    updates = [(classifier.weights, classifier.weights - learning_rate * g_weights),
+               (classifier.biases, classifier.biases - learning_rate * g_biases)]
 
     # compiling a Theano function `train_model` that returns the cost, but in
     # the same time updates the parameter of the model based on the rules
@@ -297,8 +297,8 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
             outputs=cost,
             updates=updates,
             givens={
-                x: train_set_x[index * batch_size:(index + 1) * batch_size],
-                y: train_set_y[index * batch_size:(index + 1) * batch_size]})
+                input: train_set_input[index * batch_size:(index + 1) * batch_size],
+                output: train_set_output[index * batch_size:(index + 1) * batch_size]})
 
     ###############
     # TRAIN MODEL #
