@@ -212,6 +212,28 @@ def load_data(dataset):
             (test_set_input, test_set_output)]
     return rval
 
+def check_validation_set(validate_model, test_model, n_valid_batches, n_test_batches, best_validation_loss, patience, iter):
+    IMPROVEMENT_THRESHOLD = 0.995  # a relative improvement of this much is considered significant
+    PATIENCE_INCREASE = 2  # wait this much longer when a new best is found
+    
+    # compute zero-one loss on validation set
+    this_validation_loss = numpy.mean([validate_model(i) for i in xrange(n_valid_batches)])
+    print('          validation error %f%%' % (this_validation_loss * 100.))
+    
+    # if we got the best validation score until now
+    if this_validation_loss < best_validation_loss:
+        #improve patience if loss improvement is good enough
+        if this_validation_loss < best_validation_loss * IMPROVEMENT_THRESHOLD:
+            patience = max(patience, iter * PATIENCE_INCREASE)
+
+        best_validation_loss = this_validation_loss
+        # test it on the test set
+        test_loss = numpy.mean([test_model(i) for i in xrange(n_test_batches)])
+        print('          test error of best model %f%%' % (test_loss * 100.))
+    else:
+        test_loss = 0.
+
+    return patience, best_validation_loss, test_loss
 
 def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
                            dataset='mnist.pkl.gz',
@@ -303,12 +325,7 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
     print '... training the model'
     # early-stopping parameters
     patience = 5000  # look as this many examples regardless
-    PATIENCE_INCREASE = 2  # wait this much longer when a new best is
-                                  # found
-    IMPROVEMENT_THRESHOLD = 0.995  # a relative improvement of this much is
-                                  # considered significant
     best_validation_loss = numpy.inf
-    test_score = 0.
     start_time = time.clock()
 
     done_looping = False
@@ -321,38 +338,9 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
             # iteration number
             iter = (epoch - 1) * n_train_batches + minibatch_index
 
-            if (iter + 1) % min(n_train_batches, patience / 2) == 0: # go through this many
-                                  # minibatches before checking the network
-                                  # on the validation set; in this case we
-                                  # check every epoch
-
-                # compute zero-one loss on validation set
-                validation_losses = [validate_model(i)
-                                     for i in xrange(n_valid_batches)]
-                this_validation_loss = numpy.mean(validation_losses)
-
-                print('epoch %i, minibatch %i/%i, validation error %f %%' % \
-                    (epoch, minibatch_index + 1, n_train_batches,
-                    this_validation_loss * 100.))
-
-                # if we got the best validation score until now
-                if this_validation_loss < best_validation_loss:
-                    #improve patience if loss improvement is good enough
-                    if this_validation_loss < best_validation_loss *  \
-                       IMPROVEMENT_THRESHOLD:
-                        patience = max(patience, iter * PATIENCE_INCREASE)
-
-                    best_validation_loss = this_validation_loss
-                    # test it on the test set
-
-                    test_losses = [test_model(i)
-                                   for i in xrange(n_test_batches)]
-                    test_score = numpy.mean(test_losses)
-
-                    print(('     epoch %i, minibatch %i/%i, test error of best'
-                       ' model %f %%') %
-                        (epoch, minibatch_index + 1, n_train_batches,
-                         test_score * 100.))
+            if (iter + 1) % min(n_train_batches, patience / 2) == 0: # go through this many minibatches before checking
+                print('epoch %i, minibatch %i/%i, ' % (epoch, minibatch_index + 1, n_train_batches))
+                patience, best_validation_loss, test_loss = check_validation_set(validate_model, test_model, n_valid_batches, n_test_batches, best_validation_loss, patience, iter)
 
             if patience <= iter:
                 done_looping = True
@@ -361,7 +349,7 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
     end_time = time.clock()
     print(('Optimization complete with best validation score of %f %%,'
            'with test performance %f %%') %
-                 (best_validation_loss * 100., test_score * 100.))
+                 (best_validation_loss * 100., test_loss * 100.))
     print 'The code run for %d epochs, with %f epochs/sec' % (
         epoch, 1. * epoch / (end_time - start_time))
     print >> sys.stderr, ('The code for file ' +
