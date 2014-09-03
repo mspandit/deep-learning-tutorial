@@ -44,7 +44,7 @@ import time
 import numpy
 
 import theano
-import theano.tensor as Tensor
+import theano.tensor
 
 
 class LogisticRegression(object):
@@ -83,14 +83,11 @@ class LogisticRegression(object):
                                name='biases', borrow=True)
 
         # compute vector of class-membership probabilities in symbolic form
-        self.p_output_given_input = Tensor.nnet.softmax(Tensor.dot(input, self.weights) + self.biases)
+        self.p_output_given_input = theano.tensor.nnet.softmax(theano.tensor.dot(input, self.weights) + self.biases)
 
         # compute prediction as class whose probability is maximal in
         # symbolic form
-        self.output_pred = Tensor.argmax(self.p_output_given_input, axis=1)
-
-        # parameters of the model
-        self.params = [self.weights, self.biases]
+        self.output_pred = theano.tensor.argmax(self.p_output_given_input, axis=1)
 
     def negative_log_likelihood(self, output):
         """Return the mean of the negative log-likelihood of the prediction
@@ -111,15 +108,15 @@ class LogisticRegression(object):
         """
         # output.shape[0] is (symbolically) the number of rows in output, i.e.,
         # number of examples (call it n) in the minibatch
-        # Tensor.arange(output.shape[0]) is a symbolic vector which will contain
-        # [0,1,2,... n-1] Tensor.log(self.p_output_given_input) is a matrix of
+        # theano.tensor.arange(output.shape[0]) is a symbolic vector which will contain
+        # [0,1,2,... n-1] theano.tensor.log(self.p_output_given_input) is a matrix of
         # Log-Probabilities (call it LP) with one row per example and
-        # one column per class LP[Tensor.arange(output.shape[0]),output] is a vector
+        # one column per class LP[theano.tensor.arange(output.shape[0]),output] is a vector
         # v containing [LP[0,output[0]], LP[1,output[1]], LP[2,output[2]], ...,
-        # LP[n-1,output[n-1]]] and Tensor.mean(LP[Tensor.arange(output.shape[0]),output]) is
+        # LP[n-1,output[n-1]]] and theano.tensor.mean(LP[theano.tensor.arange(output.shape[0]),output]) is
         # the mean (across minibatch examples) of the elements in v,
         # i.e., the mean log-likelihood across the minibatch.
-        return -Tensor.mean(Tensor.log(self.p_output_given_input)[Tensor.arange(output.shape[0]), output])
+        return -theano.tensor.mean(theano.tensor.log(self.p_output_given_input)[theano.tensor.arange(output.shape[0]), output])
 
     def errors(self, output):
         """Return a float representing the number of errors in the minibatch
@@ -137,9 +134,9 @@ class LogisticRegression(object):
                 ('output', target.type, 'output_pred', self.output_pred.type))
         # check if output is of the correct datatype
         if output.dtype.startswith('int'):
-            # the Tensor.neq operator returns a vector of 0s and 1s, where 1
+            # the theano.tensor.neq operator returns a vector of 0s and 1s, where 1
             # represents a mistake in prediction
-            return Tensor.mean(Tensor.neq(self.output_pred, output))
+            return theano.tensor.mean(theano.tensor.neq(self.output_pred, output))
         else:
             raise NotImplementedError()
 
@@ -205,7 +202,7 @@ def load_data(dataset):
         # floats it doesn't make sense) therefore instead of returning
         # ``shared_output`` we will have to cast it to int. This little hack
         # lets ous get around this issue
-        return shared_input, Tensor.cast(shared_output, 'int32')
+        return shared_input, theano.tensor.cast(shared_output, 'int32')
 
     test_set_input, test_set_output = shared_dataset(test_set)
     valid_set_input, valid_set_output = shared_dataset(valid_set)
@@ -254,9 +251,9 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
     print '... building the model'
 
     # allocate symbolic variables for the data
-    index = Tensor.lscalar()  # index to a [mini]batch
-    input = Tensor.matrix('input')  # the data is presented as rasterized images
-    output = Tensor.ivector('output')  # the labels are presented as 1D vector of
+    index = theano.tensor.lscalar()  # index to a [mini]batch
+    input = theano.tensor.matrix('input')  # the data is presented as rasterized images
+    output = theano.tensor.ivector('output')  # the labels are presented as 1D vector of
                            # [int] labels
 
     # construct the logistic regression class
@@ -282,8 +279,8 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
                 output: valid_set_output[index * batch_size:(index + 1) * batch_size]})
 
     # compute the gradient of cost with respect to theta = (weights,biases)
-    g_weights = Tensor.grad(cost=cost, wrt=classifier.weights)
-    g_biases = Tensor.grad(cost=cost, wrt=classifier.biases)
+    g_weights = theano.tensor.grad(cost=cost, wrt=classifier.weights)
+    g_biases = theano.tensor.grad(cost=cost, wrt=classifier.biases)
 
     # specify how to update the parameters of the model as a list of
     # (variable, update expression) pairs.
@@ -306,17 +303,10 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
     print '... training the model'
     # early-stopping parameters
     patience = 5000  # look as this many examples regardless
-    patience_increase = 2  # wait this much longer when a new best is
+    PATIENCE_INCREASE = 2  # wait this much longer when a new best is
                                   # found
-    improvement_threshold = 0.995  # a relative improvement of this much is
+    IMPROVEMENT_THRESHOLD = 0.995  # a relative improvement of this much is
                                   # considered significant
-    validation_frequency = min(n_train_batches, patience / 2)
-                                  # go through this many
-                                  # minibatche before checking the network
-                                  # on the validation set; in this case we
-                                  # check every epoch
-
-    best_params = None
     best_validation_loss = numpy.inf
     test_score = 0.
     start_time = time.clock()
@@ -331,7 +321,11 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
             # iteration number
             iter = (epoch - 1) * n_train_batches + minibatch_index
 
-            if (iter + 1) % validation_frequency == 0:
+            if (iter + 1) % min(n_train_batches, patience / 2) == 0: # go through this many
+                                  # minibatches before checking the network
+                                  # on the validation set; in this case we
+                                  # check every epoch
+
                 # compute zero-one loss on validation set
                 validation_losses = [validate_model(i)
                                      for i in xrange(n_valid_batches)]
@@ -345,8 +339,8 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
                 if this_validation_loss < best_validation_loss:
                     #improve patience if loss improvement is good enough
                     if this_validation_loss < best_validation_loss *  \
-                       improvement_threshold:
-                        patience = max(patience, iter * patience_increase)
+                       IMPROVEMENT_THRESHOLD:
+                        patience = max(patience, iter * PATIENCE_INCREASE)
 
                     best_validation_loss = this_validation_loss
                     # test it on the test set
