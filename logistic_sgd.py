@@ -48,12 +48,13 @@ import theano.tensor
 
 class DataModel(object):
     def __init__(self, index, input_set, output_set, batch_size, classifier, input, output):
-        self.index = index
-        self.input_set = input_set
-        self.output_set = output_set
-        self.loss_function = theano.function(inputs=[index], outputs=classifier.errors(output), givens={
-                input: input_set[index * batch_size: (index + 1) * batch_size],
-                output: output_set[index * batch_size: (index + 1) * batch_size]})
+        self.loss_function = theano.function(
+            inputs = [index], 
+            outputs = classifier.errors(output_set[index * batch_size: (index + 1) * batch_size]), 
+            givens = {
+                input: input_set[index * batch_size: (index + 1) * batch_size]
+            }
+        )
         self.n_batches = input_set.get_value(borrow=True).shape[0] / batch_size
                 
     def loss(self):
@@ -86,13 +87,22 @@ class LogisticRegression(object):
         """
 
         # initialize with 0 the weights as a matrix of shape (n_in, n_out)
-        self.weights = theano.shared(value=numpy.zeros((n_in, n_out),
-                                                 dtype=theano.config.floatX),
-                                name='weights', borrow=True)
+        self.weights = theano.shared(
+            value = numpy.zeros(
+                (n_in, n_out), 
+                dtype = theano.config.floatX
+            ), 
+            name = 'weights', 
+            borrow = True)
+            
         # initialize the biases as a vector of n_out 0s
-        self.biases = theano.shared(value=numpy.zeros((n_out,),
-                                                 dtype=theano.config.floatX),
-                               name='biases', borrow=True)
+        self.biases = theano.shared(
+            value = numpy.zeros(
+                (n_out,),
+                dtype = theano.config.floatX
+            ),
+            name = 'biases', 
+            borrow = True)
 
         # compute vector of class-membership probabilities in symbolic form
         self.p_output_given_input = theano.tensor.nnet.softmax(theano.tensor.dot(input, self.weights) + self.biases)
@@ -282,43 +292,41 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
     ######################
     print '... building the model'
 
-    # allocate symbolic variables for the data
-    index = theano.tensor.lscalar()  # index to a [mini]batch
     input = theano.tensor.matrix('input')  # the data is presented as rasterized images
-    output = theano.tensor.ivector('output')  # the labels are presented as 1D vector of
-                           # [int] labels
-
     # construct the logistic regression class
     # Each MNIST image has size 28*28
-    classifier = LogisticRegression(input=input, n_in=28 * 28, n_out=10)
+    classifier = LogisticRegression(input, n_in = 28 * 28, n_out = 10)
 
-    # the cost we minimize during training is the negative log likelihood of
-    # the model in symbolic format
-    cost = classifier.negative_log_likelihood(output)
+    # allocate symbolic variables for the data
+    index = theano.tensor.lscalar()  # index to a [mini]batch
+    output = theano.tensor.ivector('output')  # the labels are presented as 1D vector of [int] labels
 
     # compiling a Theano function that computes the mistakes that are made by
     # the model on a minibatch
     test_model = DataModel(index, test_set_input, test_set_output, batch_size, classifier, input, output)
     validate_model = DataModel(index, valid_set_input, valid_set_output, batch_size, classifier, input, output)
 
-    # compute the gradient of cost with respect to theta = (weights,biases)
-    g_weights = theano.tensor.grad(cost=cost, wrt=classifier.weights)
-    g_biases = theano.tensor.grad(cost=cost, wrt=classifier.biases)
-
     # specify how to update the parameters of the model as a list of
     # (variable, update expression) pairs.
-    updates = [(classifier.weights, classifier.weights - learning_rate * g_weights),
-               (classifier.biases, classifier.biases - learning_rate * g_biases)]
 
     # compiling a Theano function `train_model` that returns the cost, but in
     # the same time updates the parameter of the model based on the rules
     # defined in `updates`
-    train_model = theano.function(inputs=[index],
-            outputs=cost,
-            updates=updates,
-            givens={
+
+    # the cost we minimize during training is the negative log likelihood of
+    # the model in symbolic format
+    train_model = theano.function(
+        inputs = [index],
+        outputs = classifier.negative_log_likelihood(output),
+        updates = [
+            (classifier.weights, classifier.weights - learning_rate * theano.tensor.grad(cost = classifier.negative_log_likelihood(output), wrt = classifier.weights)),
+            (classifier.biases, classifier.biases - learning_rate * theano.tensor.grad(cost = classifier.negative_log_likelihood(output), wrt = classifier.biases))
+        ],
+        givens = {
                 input: train_set_input[index * batch_size:(index + 1) * batch_size],
-                output: train_set_output[index * batch_size:(index + 1) * batch_size]})
+                output: train_set_output[index * batch_size:(index + 1) * batch_size]
+        }
+    )
 
     ###############
     # TRAIN MODEL #
@@ -336,6 +344,7 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
         for minibatch_index in xrange(n_train_batches):
 
             minibatch_avg_cost = train_model(minibatch_index)
+            
             # iteration number
             iter = (epoch - 1) * n_train_batches + minibatch_index
 
