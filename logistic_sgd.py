@@ -46,6 +46,18 @@ import numpy
 import theano
 import theano.tensor
 
+class DataModel(object):
+    def __init__(self, index, input_set, output_set, batch_size, classifier, input, output):
+        self.index = index
+        self.input_set = input_set
+        self.output_set = output_set
+        self.loss_function = theano.function(inputs=[index], outputs=classifier.errors(output), givens={
+                input: input_set[index * batch_size: (index + 1) * batch_size],
+                output: output_set[index * batch_size: (index + 1) * batch_size]})
+        self.n_batches = input_set.get_value(borrow=True).shape[0] / batch_size
+                
+    def loss(self):
+        return numpy.mean([self.loss_function(i) for i in xrange(self.n_batches)])
 
 class LogisticRegression(object):
     """Multi-class Logistic Regression Class
@@ -212,12 +224,12 @@ def load_data(dataset):
             (test_set_input, test_set_output)]
     return rval
 
-def check_validation_set(validate_model, test_model, n_valid_batches, n_test_batches, best_validation_loss, patience, iter):
+def check_validation_set(validate_model, test_model, best_validation_loss, patience, iter):
     IMPROVEMENT_THRESHOLD = 0.995  # a relative improvement of this much is considered significant
     PATIENCE_INCREASE = 2  # wait this much longer when a new best is found
     
     # compute zero-one loss on validation set
-    this_validation_loss = numpy.mean([validate_model(i) for i in xrange(n_valid_batches)])
+    this_validation_loss = validate_model.loss()
     print('          validation error %f%%' % (this_validation_loss * 100.))
     
     # if we got the best validation score until now
@@ -228,7 +240,7 @@ def check_validation_set(validate_model, test_model, n_valid_batches, n_test_bat
 
         best_validation_loss = this_validation_loss
         # test it on the test set
-        test_loss = numpy.mean([test_model(i) for i in xrange(n_test_batches)])
+        test_loss = test_model.loss()
         print('          test error of best model %f%%' % (test_loss * 100.))
     else:
         test_loss = 0.
@@ -264,8 +276,6 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
 
     # compute number of minibatches for training, validation and testing
     n_train_batches = train_set_input.get_value(borrow=True).shape[0] / batch_size
-    n_valid_batches = valid_set_input.get_value(borrow=True).shape[0] / batch_size
-    n_test_batches = test_set_input.get_value(borrow=True).shape[0] / batch_size
 
     ######################
     # BUILD ACTUAL MODEL #
@@ -288,17 +298,8 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
 
     # compiling a Theano function that computes the mistakes that are made by
     # the model on a minibatch
-    test_model = theano.function(inputs=[index],
-            outputs=classifier.errors(output),
-            givens={
-                input: test_set_input[index * batch_size: (index + 1) * batch_size],
-                output: test_set_output[index * batch_size: (index + 1) * batch_size]})
-
-    validate_model = theano.function(inputs=[index],
-            outputs=classifier.errors(output),
-            givens={
-                input: valid_set_input[index * batch_size:(index + 1) * batch_size],
-                output: valid_set_output[index * batch_size:(index + 1) * batch_size]})
+    test_model = DataModel(index, test_set_input, test_set_output, batch_size, classifier, input, output)
+    validate_model = DataModel(index, valid_set_input, valid_set_output, batch_size, classifier, input, output)
 
     # compute the gradient of cost with respect to theta = (weights,biases)
     g_weights = theano.tensor.grad(cost=cost, wrt=classifier.weights)
@@ -340,7 +341,7 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
 
             if (iter + 1) % min(n_train_batches, patience / 2) == 0: # go through this many minibatches before checking
                 print('epoch %i, minibatch %i/%i, ' % (epoch, minibatch_index + 1, n_train_batches))
-                patience, best_validation_loss, test_loss = check_validation_set(validate_model, test_model, n_valid_batches, n_test_batches, best_validation_loss, patience, iter)
+                patience, best_validation_loss, test_loss = check_validation_set(validate_model, test_model, best_validation_loss, patience, iter)
 
             if patience <= iter:
                 done_looping = True
