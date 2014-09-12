@@ -1,0 +1,3 @@
+*.pyc
+rbm_plots/*
+dA_plots/*
