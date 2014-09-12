@@ -12,9 +12,9 @@ import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
-from logistic_sgd import LogisticRegression, load_data
-from mlp import HiddenLayer
-from rbm import RBM
+from logistic_classifier import LogisticRegression, load_data
+from multilayer_perceptron import HiddenLayer
+from restricted_boltzmann_machine import RBM
 
 
 class DBN(object):

@@ -33,7 +33,7 @@ import theano
 import theano.tensor as T
 
 
-from logistic_sgd import LogisticRegression, load_data
+from logistic_classifier import LogisticRegression, load_data
 
 
 class HiddenLayer(object):

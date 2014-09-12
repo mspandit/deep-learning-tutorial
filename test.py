@@ -1,12 +1,12 @@
 import unittest
 
-from logistic_sgd import sgd_optimization_mnist
-from mlp import test_mlp
-from convolutional_mlp import evaluate_lenet5
-from dA import test_dA
-from SdA import test_SdA
-from rbm import test_rbm
-from DBN import test_DBN
+from logistic_classifier import sgd_optimization_mnist
+from multilayer_perceptron import test_mlp
+from convolutional_multilayer_perceptron import evaluate_lenet5
+from denoising_autoencoder import test_dA
+from stacked_denoising_autoencoder import test_SdA
+from restricted_boltzmann_machine import test_rbm
+from deep_belief_network import test_DBN
 
 class TestTutorials(unittest.TestCase):
     def test_logistic_stochastic_gradient_descent(self):
@@ -19,8 +19,7 @@ class TestTutorials(unittest.TestCase):
         evaluate_lenet5(n_epochs = 1, batch_size = 1, nkerns = [2, 5])
 
     def test_denoising_autoencoder(self):
-        # test_dA(training_epochs = 1, batch_size = 1)
-        pass
+        test_dA(training_epochs = 1, batch_size = 1)
 
     def test_stacked_denoising_autoencoder(self):
         test_SdA(pretraining_epochs = 1, training_epochs = 1, batch_size = 1)
