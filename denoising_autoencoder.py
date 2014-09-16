@@ -273,19 +273,15 @@ class DenoisingAutoencoder(object):
         ####################################
         # BUILDING THE MODEL NO CORRUPTION #
         ####################################
-
+        uncorrupt_costs = []
         rng = numpy.random.RandomState(123)
         theano_rng = RandomStreams(rng.randint(2 ** 30))
 
-        da = dA(numpy_rng=rng, theano_rng=theano_rng, input=x,
-                n_visible=28 * 28, n_hidden=500)
+        da = dA(numpy_rng=rng, theano_rng=theano_rng, input=x, n_visible=28 * 28, n_hidden=500)
 
-        cost, updates = da.get_cost_updates(corruption_level=0.,
-                                            learning_rate=learning_rate)
+        cost, updates = da.get_cost_updates(corruption_level=0., learning_rate=learning_rate)
 
-        train_da = theano.function([index], cost, updates=updates,
-             givens={x: self.dataset.train_set_input[index * batch_size:
-                                    (index + 1) * batch_size]})
+        train_da = theano.function([index], cost, updates=updates, givens={x: self.dataset.train_set_input[index * batch_size : (index + 1) * batch_size]})
 
         start_time = time.clock()
 
@@ -301,36 +297,29 @@ class DenoisingAutoencoder(object):
                 c.append(train_da(batch_index))
 
             print 'Training epoch %d, cost ' % epoch, numpy.mean(c)
-
+            uncorrupt_costs.append(numpy.mean(c))
+            
         end_time = time.clock()
 
         training_time = (end_time - start_time)
 
-        print >> sys.stderr, ('The no corruption code for file ' +
-                              os.path.split(__file__)[1] +
-                              ' ran for %.2fm' % ((training_time) / 60.))
-        image = Image.fromarray(
-            tile_raster_images(X=da.W.get_value(borrow=True).T,
-                               img_shape=(28, 28), tile_shape=(10, 10),
-                               tile_spacing=(1, 1)))
+        print >> sys.stderr, ('The no corruption code for file ' + os.path.split(__file__)[1] + ' ran for %.2fm' % ((training_time) / 60.))
+        image = Image.fromarray(tile_raster_images(X=da.W.get_value(borrow=True).T, img_shape=(28, 28), tile_shape=(10, 10), tile_spacing=(1, 1)))
         image.save('filters_corruption_0.png')
 
         #####################################
         # BUILDING THE MODEL CORRUPTION 30% #
         #####################################
 
+        corrupt_costs = []
         rng = numpy.random.RandomState(123)
         theano_rng = RandomStreams(rng.randint(2 ** 30))
 
-        da = dA(numpy_rng=rng, theano_rng=theano_rng, input=x,
-                n_visible=28 * 28, n_hidden=500)
+        da = dA(numpy_rng=rng, theano_rng=theano_rng, input=x, n_visible=28 * 28, n_hidden=500)
 
-        cost, updates = da.get_cost_updates(corruption_level=0.3,
-                                            learning_rate=learning_rate)
+        cost, updates = da.get_cost_updates(corruption_level=0.3, learning_rate=learning_rate)
 
-        train_da = theano.function([index], cost, updates=updates,
-             givens={x: self.dataset.train_set_input[index * batch_size:
-                                      (index + 1) * batch_size]})
+        train_da = theano.function([index], cost, updates=updates, givens={x: self.dataset.train_set_input[index * batch_size : (index + 1) * batch_size]})
 
         start_time = time.clock()
 
@@ -346,26 +335,22 @@ class DenoisingAutoencoder(object):
                 c.append(train_da(batch_index))
 
             print 'Training epoch %d, cost ' % epoch, numpy.mean(c)
-
+            corrupt_costs.append(numpy.mean(c))
+            
         end_time = time.clock()
 
         training_time = (end_time - start_time)
 
-        print >> sys.stderr, ('The 30% corruption code for file ' +
-                              os.path.split(__file__)[1] +
-                              ' ran for %.2fm' % (training_time / 60.))
-
-        image = Image.fromarray(tile_raster_images(
-            X=da.W.get_value(borrow=True).T,
-            img_shape=(28, 28), tile_shape=(10, 10),
-            tile_spacing=(1, 1)))
+        print >> sys.stderr, ('The 30% corruption code for file ' + os.path.split(__file__)[1] + ' ran for %.2fm' % (training_time / 60.))
+        image = Image.fromarray(tile_raster_images(X=da.W.get_value(borrow=True).T, img_shape=(28, 28), tile_shape=(10, 10), tile_spacing=(1, 1)))
         image.save('filters_corruption_30.png')
 
         os.chdir('../')
-
+        
+        return [uncorrupt_costs, corrupt_costs]
 
 if __name__ == '__main__':
     dataset = DataSet()
     dataset.load()
     da = DenoisingAutoencoder(dataset)
-    da.evaluate()
+    uncorrupt_costs, corrupt_costs = da.evaluate()

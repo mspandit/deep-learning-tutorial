@@ -381,7 +381,7 @@ class RestrictedBoltzmannMachine(object):
 
         plotting_time = 0.
         start_time = time.clock()
-
+        epoch_costs = []
         # go through training epochs
         for epoch in xrange(training_epochs):
 
@@ -391,7 +391,8 @@ class RestrictedBoltzmannMachine(object):
                 mean_cost += [train_rbm(batch_index)]
 
             print 'Training epoch %d, cost is ' % epoch, numpy.mean(mean_cost)
-
+            epoch_costs.append(numpy.mean(mean_cost))
+            
             # Plot filters after each training epoch
             plotting_start = time.clock()
             # Construct image from the weight matrix
@@ -461,6 +462,7 @@ class RestrictedBoltzmannMachine(object):
         image = Image.fromarray(image_data)
         image.save('samples.png')
         os.chdir('../')
+        return epoch_costs
 
 if __name__ == '__main__':
     dataset = DataSet()

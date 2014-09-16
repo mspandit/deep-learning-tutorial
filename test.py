@@ -32,7 +32,9 @@ class TestTutorials(unittest.TestCase):
 
     def test_denoising_autoencoder(self):
         da = DenoisingAutoencoder(self.dataset)
-        da.evaluate(training_epochs = 1, batch_size = 2)
+        uncorrupt_costs, corrupt_costs = da.evaluate(training_epochs = 1, batch_size = 2)
+        self.assertEqual(uncorrupt_costs, [149.16503228187111])
+        self.assertEqual(corrupt_costs, [173.66499408829787])
         
     def test_logistic_stochastic_gradient_descent(self):
         lc = LogisticClassifier(self.dataset)
@@ -50,7 +52,8 @@ class TestTutorials(unittest.TestCase):
         
     def test_restricted_boltzmann_machine(self):
         rbm = RestrictedBoltzmannMachine(self.dataset)
-        rbm.evaluate(training_epochs = 1, batch_size = 2, n_chains = 2, n_samples = 2, n_hidden = 5)
+        epoch_costs = rbm.evaluate(training_epochs = 1, batch_size = 2, n_chains = 2, n_samples = 2, n_hidden = 5)
+        self.assertEqual(epoch_costs, [-174.86070176730175])
 
     def test_stacked_denoising_autoencoder(self):
         sda = StackedDenoisingAutoencoder(self.dataset)
