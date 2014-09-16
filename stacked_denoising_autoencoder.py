@@ -41,7 +41,7 @@ import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
-from logistic_classifier import LogisticRegression, load_data
+from logistic_classifier import LogisticRegression
 from multilayer_perceptron import HiddenLayer
 from denoising_autoencoder import dA
 
@@ -168,15 +168,15 @@ class SdA(object):
         # minibatch given by self.x and self.y
         self.errors = self.logLayer.errors(self.y)
 
-    def pretraining_functions(self, train_set_x, batch_size):
+    def pretraining_functions(self, train_set_input, batch_size):
         ''' Generates a list of functions, each of them implementing one
         step in trainnig the dA corresponding to the layer with same index.
         The function will require as input the minibatch index, and to train
         a dA you just need to iterate, calling the corresponding function on
         all minibatch indexes.
 
-        :type train_set_x: theano.tensor.TensorType
-        :param train_set_x: Shared variable that contains all datapoints used
+        :type train_set_input: theano.tensor.TensorType
+        :param train_set_input: Shared variable that contains all datapoints used
                             for training the dA
 
         :type batch_size: int
@@ -192,7 +192,7 @@ class SdA(object):
         corruption_level = T.scalar('corruption')  # % of corruption to use
         learning_rate = T.scalar('lr')  # learning rate to use
         # number of batches
-        n_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
+        n_batches = train_set_input.get_value(borrow=True).shape[0] / batch_size
         # begining of a batch, given `index`
         batch_begin = index * batch_size
         # ending of a batch given `index`
@@ -209,14 +209,14 @@ class SdA(object):
                               theano.Param(learning_rate, default=0.1)],
                                  outputs=cost,
                                  updates=updates,
-                                 givens={self.x: train_set_x[batch_begin:
+                                 givens={self.x: train_set_input[batch_begin:
                                                              batch_end]})
             # append `fn` to the list of functions
             pretrain_fns.append(fn)
 
         return pretrain_fns
 
-    def build_finetune_functions(self, datasets, batch_size, learning_rate):
+    def build_finetune_functions(self, dataset, batch_size, learning_rate):
         '''Generates a function `train` that implements one step of
         finetuning, a function `validate` that computes the error on
         a batch from the validation set, and a function `test` that
@@ -236,14 +236,10 @@ class SdA(object):
         :param learning_rate: learning rate used during finetune stage
         '''
 
-        (train_set_x, train_set_y) = datasets[0]
-        (valid_set_x, valid_set_y) = datasets[1]
-        (test_set_x, test_set_y) = datasets[2]
-
         # compute number of minibatches for training, validation and testing
-        n_valid_batches = valid_set_x.get_value(borrow=True).shape[0]
+        n_valid_batches = dataset.valid_set_input.get_value(borrow=True).shape[0]
         n_valid_batches /= batch_size
-        n_test_batches = test_set_x.get_value(borrow=True).shape[0]
+        n_test_batches = dataset.test_set_input.get_value(borrow=True).shape[0]
         n_test_batches /= batch_size
 
         index = T.lscalar('index')  # index to a [mini]batch
@@ -260,25 +256,25 @@ class SdA(object):
               outputs=self.finetune_cost,
               updates=updates,
               givens={
-                self.x: train_set_x[index * batch_size:
+                self.x: dataset.train_set_input[index * batch_size:
                                     (index + 1) * batch_size],
-                self.y: train_set_y[index * batch_size:
+                self.y: dataset.train_set_output[index * batch_size:
                                     (index + 1) * batch_size]},
               name='train')
 
         test_score_i = theano.function([index], self.errors,
                  givens={
-                   self.x: test_set_x[index * batch_size:
+                   self.x: dataset.test_set_input[index * batch_size:
                                       (index + 1) * batch_size],
-                   self.y: test_set_y[index * batch_size:
+                   self.y: dataset.test_set_output[index * batch_size:
                                       (index + 1) * batch_size]},
                       name='test')
 
         valid_score_i = theano.function([index], self.errors,
               givens={
-                 self.x: valid_set_x[index * batch_size:
+                 self.x: dataset.valid_set_input[index * batch_size:
                                      (index + 1) * batch_size],
-                 self.y: valid_set_y[index * batch_size:
+                 self.y: dataset.valid_set_output[index * batch_size:
                                      (index + 1) * batch_size]},
                       name='valid')
 
@@ -293,9 +289,11 @@ class SdA(object):
         return train_fn, valid_score, test_score
 
 
-def test_SdA(finetune_lr=0.1, pretraining_epochs=15,
+from data_set import DataSet
+
+def test_SdA(dataset, finetune_lr=0.1, pretraining_epochs=15,
              pretrain_lr=0.001, training_epochs=1000,
-             dataset='mnist.pkl.gz', batch_size=1):
+             batch_size=1):
     """
     Demonstrates how to train and test a stochastic denoising autoencoder.
 
@@ -319,14 +317,8 @@ def test_SdA(finetune_lr=0.1, pretraining_epochs=15,
 
     """
 
-    datasets = load_data(dataset)
-
-    train_set_x, train_set_y = datasets[0]
-    valid_set_x, valid_set_y = datasets[1]
-    test_set_x, test_set_y = datasets[2]
-
     # compute number of minibatches for training, validation and testing
-    n_train_batches = train_set_x.get_value(borrow=True).shape[0]
+    n_train_batches = dataset.train_set_input.get_value(borrow=True).shape[0]
     n_train_batches /= batch_size
 
     # numpy random generator
@@ -341,7 +333,7 @@ def test_SdA(finetune_lr=0.1, pretraining_epochs=15,
     # PRETRAINING THE MODEL #
     #########################
     print '... getting the pretraining functions'
-    pretraining_fns = sda.pretraining_functions(train_set_x=train_set_x,
+    pretraining_fns = sda.pretraining_functions(train_set_input=dataset.train_set_input,
                                                 batch_size=batch_size)
 
     print '... pre-training the model'
@@ -373,7 +365,7 @@ def test_SdA(finetune_lr=0.1, pretraining_epochs=15,
     # get the training, validation and testing function for the model
     print '... getting the finetuning functions'
     train_fn, validate_model, test_model = sda.build_finetune_functions(
-                datasets=datasets, batch_size=batch_size,
+                dataset=dataset, batch_size=batch_size,
                 learning_rate=finetune_lr)
 
     print '... finetunning the model'
@@ -444,4 +436,6 @@ def test_SdA(finetune_lr=0.1, pretraining_epochs=15,
 
 
 if __name__ == '__main__':
-    test_SdA()
+    dataset = DataSet()
+    dataset.load()
+    test_SdA(dataset)

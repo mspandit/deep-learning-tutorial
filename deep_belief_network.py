@@ -12,7 +12,7 @@ import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
-from logistic_classifier import LogisticRegression, load_data
+from logistic_classifier import LogisticRegression
 from multilayer_perceptron import HiddenLayer
 from restricted_boltzmann_machine import RBM
 
@@ -137,15 +137,15 @@ class DBN(object):
         # minibatch given by self.x and self.y
         self.errors = self.logLayer.errors(self.y)
 
-    def pretraining_functions(self, train_set_x, batch_size, k):
+    def pretraining_functions(self, train_set_input, batch_size, k):
         '''Generates a list of functions, for performing one step of
         gradient descent at a given layer. The function will require
         as input the minibatch index, and to train an RBM you just
         need to iterate, calling the corresponding function on all
         minibatch indexes.
 
-        :type train_set_x: theano.tensor.TensorType
-        :param train_set_x: Shared var. that contains all datapoints used
+        :type train_set_input: theano.tensor.TensorType
+        :param train_set_input: Shared var. that contains all datapoints used
                             for training the RBM
         :type batch_size: int
         :param batch_size: size of a [mini]batch
@@ -158,7 +158,7 @@ class DBN(object):
         learning_rate = T.scalar('lr')  # learning rate to use
 
         # number of batches
-        n_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
+        n_batches = train_set_input.get_value(borrow=True).shape[0] / batch_size
         # begining of a batch, given `index`
         batch_begin = index * batch_size
         # ending of a batch given `index`
@@ -179,20 +179,20 @@ class DBN(object):
                                  outputs=cost,
                                  updates=updates,
                                  givens={self.x:
-                                    train_set_x[batch_begin:batch_end]})
+                                    train_set_input[batch_begin:batch_end]})
             # append `fn` to the list of functions
             pretrain_fns.append(fn)
 
         return pretrain_fns
 
-    def build_finetune_functions(self, datasets, batch_size, learning_rate):
+    def build_finetune_functions(self, dataset, batch_size, learning_rate):
         '''Generates a function `train` that implements one step of
         finetuning, a function `validate` that computes the error on a
         batch from the validation set, and a function `test` that
         computes the error on a batch from the testing set
 
-        :type datasets: list of pairs of theano.tensor.TensorType
-        :param datasets: It is a list that contain all the datasets;
+        :type dataset: list of pairs of theano.tensor.TensorType
+        :param dataset: It is a list that contain all the datasets;
                         the has to contain three pairs, `train`,
                         `valid`, `test` in this order, where each pair
                         is formed of two Theano variables, one for the
@@ -204,14 +204,10 @@ class DBN(object):
 
         '''
 
-        (train_set_x, train_set_y) = datasets[0]
-        (valid_set_x, valid_set_y) = datasets[1]
-        (test_set_x, test_set_y) = datasets[2]
-
         # compute number of minibatches for training, validation and testing
-        n_valid_batches = valid_set_x.get_value(borrow=True).shape[0]
+        n_valid_batches = dataset.valid_set_input.get_value(borrow=True).shape[0]
         n_valid_batches /= batch_size
-        n_test_batches = test_set_x.get_value(borrow=True).shape[0]
+        n_test_batches = dataset.test_set_input.get_value(borrow=True).shape[0]
         n_test_batches /= batch_size
 
         index = T.lscalar('index')  # index to a [mini]batch
@@ -227,21 +223,21 @@ class DBN(object):
         train_fn = theano.function(inputs=[index],
               outputs=self.finetune_cost,
               updates=updates,
-              givens={self.x: train_set_x[index * batch_size:
+              givens={self.x: dataset.train_set_input[index * batch_size:
                                           (index + 1) * batch_size],
-                      self.y: train_set_y[index * batch_size:
+                      self.y: dataset.train_set_output[index * batch_size:
                                           (index + 1) * batch_size]})
 
         test_score_i = theano.function([index], self.errors,
-                 givens={self.x: test_set_x[index * batch_size:
+                 givens={self.x: dataset.test_set_input[index * batch_size:
                                             (index + 1) * batch_size],
-                         self.y: test_set_y[index * batch_size:
+                         self.y: dataset.test_set_output[index * batch_size:
                                             (index + 1) * batch_size]})
 
         valid_score_i = theano.function([index], self.errors,
-              givens={self.x: valid_set_x[index * batch_size:
+              givens={self.x: dataset.valid_set_input[index * batch_size:
                                           (index + 1) * batch_size],
-                      self.y: valid_set_y[index * batch_size:
+                      self.y: dataset.valid_set_output[index * batch_size:
                                           (index + 1) * batch_size]})
 
         # Create a function that scans the entire validation set
@@ -255,9 +251,9 @@ class DBN(object):
         return train_fn, valid_score, test_score
 
 
-def test_DBN(finetune_lr=0.1, pretraining_epochs=100,
+def test_DBN(dataset, finetune_lr=0.1, pretraining_epochs=100,
              pretrain_lr=0.01, k=1, training_epochs=1000,
-             dataset='mnist.pkl.gz', batch_size=10):
+             batch_size=10):
     """
     Demonstrates how to train and test a Deep Belief Network.
 
@@ -279,14 +275,8 @@ def test_DBN(finetune_lr=0.1, pretraining_epochs=100,
     :param batch_size: the size of a minibatch
     """
 
-    datasets = load_data(dataset)
-
-    train_set_x, train_set_y = datasets[0]
-    valid_set_x, valid_set_y = datasets[1]
-    test_set_x, test_set_y = datasets[2]
-
     # compute number of minibatches for training, validation and testing
-    n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
+    n_train_batches = dataset.train_set_input.get_value(borrow=True).shape[0] / batch_size
 
     # numpy random generator
     numpy_rng = numpy.random.RandomState(123)
@@ -300,7 +290,7 @@ def test_DBN(finetune_lr=0.1, pretraining_epochs=100,
     # PRETRAINING THE MODEL #
     #########################
     print '... getting the pretraining functions'
-    pretraining_fns = dbn.pretraining_functions(train_set_x=train_set_x,
+    pretraining_fns = dbn.pretraining_functions(train_set_input=dataset.train_set_input,
                                                 batch_size=batch_size,
                                                 k=k)
 
@@ -330,7 +320,7 @@ def test_DBN(finetune_lr=0.1, pretraining_epochs=100,
     # get the training, validation and testing function for the model
     print '... getting the finetuning functions'
     train_fn, validate_model, test_model = dbn.build_finetune_functions(
-                datasets=datasets, batch_size=batch_size,
+                dataset=dataset, batch_size=batch_size,
                 learning_rate=finetune_lr)
 
     print '... finetunning the model'
@@ -404,4 +394,6 @@ def test_DBN(finetune_lr=0.1, pretraining_epochs=100,
 
 
 if __name__ == '__main__':
-    test_DBN()
+    dataset = DataSet()
+    dataset.load()
+    test_DBN(dataset)

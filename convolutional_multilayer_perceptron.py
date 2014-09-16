@@ -34,7 +34,7 @@ import theano.tensor as T
 from theano.tensor.signal import downsample
 from theano.tensor.nnet import conv
 
-from logistic_classifier import LogisticRegression, load_data
+from logistic_classifier import LogisticRegression
 from multilayer_perceptron import HiddenLayer
 
 
@@ -103,8 +103,9 @@ class LeNetConvPoolLayer(object):
         self.params = [self.W, self.b]
 
 
-def evaluate_lenet5(learning_rate=0.1, n_epochs=200,
-                    dataset='mnist.pkl.gz',
+from data_set import DataSet
+
+def evaluate_lenet5(dataset, learning_rate=0.1, n_epochs=200,
                     nkerns=[20, 50], batch_size=500):
     """ Demonstrates lenet on MNIST dataset
 
@@ -124,16 +125,10 @@ def evaluate_lenet5(learning_rate=0.1, n_epochs=200,
 
     rng = numpy.random.RandomState(23455)
 
-    datasets = load_data(dataset)
-
-    train_set_x, train_set_y = datasets[0]
-    valid_set_x, valid_set_y = datasets[1]
-    test_set_x, test_set_y = datasets[2]
-
     # compute number of minibatches for training, validation and testing
-    n_train_batches = train_set_x.get_value(borrow=True).shape[0]
-    n_valid_batches = valid_set_x.get_value(borrow=True).shape[0]
-    n_test_batches = test_set_x.get_value(borrow=True).shape[0]
+    n_train_batches = dataset.train_set_input.get_value(borrow=True).shape[0]
+    n_valid_batches = dataset.valid_set_input.get_value(borrow=True).shape[0]
+    n_test_batches = dataset.test_set_input.get_value(borrow=True).shape[0]
     n_train_batches /= batch_size
     n_valid_batches /= batch_size
     n_test_batches /= batch_size
@@ -189,13 +184,13 @@ def evaluate_lenet5(learning_rate=0.1, n_epochs=200,
     # create a function to compute the mistakes that are made by the model
     test_model = theano.function([index], layer3.errors(y),
              givens={
-                x: test_set_x[index * batch_size: (index + 1) * batch_size],
-                y: test_set_y[index * batch_size: (index + 1) * batch_size]})
+                x: dataset.test_set_input[index * batch_size: (index + 1) * batch_size],
+                y: dataset.test_set_output[index * batch_size: (index + 1) * batch_size]})
 
     validate_model = theano.function([index], layer3.errors(y),
             givens={
-                x: valid_set_x[index * batch_size: (index + 1) * batch_size],
-                y: valid_set_y[index * batch_size: (index + 1) * batch_size]})
+                x: dataset.valid_set_input[index * batch_size: (index + 1) * batch_size],
+                y: dataset.valid_set_output[index * batch_size: (index + 1) * batch_size]})
 
     # create a list of all model parameters to be fit by gradient descent
     params = layer3.params + layer2.params + layer1.params + layer0.params
@@ -214,8 +209,8 @@ def evaluate_lenet5(learning_rate=0.1, n_epochs=200,
 
     train_model = theano.function([index], cost, updates=updates,
           givens={
-            x: train_set_x[index * batch_size: (index + 1) * batch_size],
-            y: train_set_y[index * batch_size: (index + 1) * batch_size]})
+            x: dataset.train_set_input[index * batch_size: (index + 1) * batch_size],
+            y: dataset.train_set_output[index * batch_size: (index + 1) * batch_size]})
 
     ###############
     # TRAIN MODEL #
@@ -296,7 +291,9 @@ def evaluate_lenet5(learning_rate=0.1, n_epochs=200,
                           ' ran for %.2fm' % ((end_time - start_time) / 60.))
 
 if __name__ == '__main__':
-    evaluate_lenet5()
+    dataset = DataSet()
+    dataset.load()
+    evaluate_lenet5(dataset)
 
 
 def experiment(state, channel):

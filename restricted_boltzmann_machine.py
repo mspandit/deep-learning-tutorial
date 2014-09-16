@@ -18,8 +18,6 @@ import os
 from theano.tensor.shared_randomstreams import RandomStreams
 
 from utils import tile_raster_images
-from logistic_classifier import load_data
-
 
 class RBM(object):
     """Restricted Boltzmann Machine (RBM)  """
@@ -314,8 +312,8 @@ class RBM(object):
         return cross_entropy
 
 
-def test_rbm(learning_rate=0.1, training_epochs=15,
-             dataset='mnist.pkl.gz', batch_size=20,
+def test_rbm(dataset, learning_rate=0.1, training_epochs=15,
+             batch_size=20,
              n_chains=20, n_samples=10, output_folder='rbm_plots',
              n_hidden=500):
     """
@@ -336,13 +334,9 @@ def test_rbm(learning_rate=0.1, training_epochs=15,
     :param n_samples: number of samples to plot for each chain
 
     """
-    datasets = load_data(dataset)
-
-    train_set_x, train_set_y = datasets[0]
-    test_set_x, test_set_y = datasets[2]
 
     # compute number of minibatches for training, validation and testing
-    n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
+    n_train_batches = dataset.train_set_input.get_value(borrow=True).shape[0] / batch_size
 
     # allocate symbolic variables for the data
     index = T.lscalar()    # index to a [mini]batch
@@ -376,7 +370,7 @@ def test_rbm(learning_rate=0.1, training_epochs=15,
     # the purpose of train_rbm is solely to update the RBM parameters
     train_rbm = theano.function([index], cost,
            updates=updates,
-           givens={x: train_set_x[index * batch_size:
+           givens={x: dataset.train_set_input[index * batch_size:
                                   (index + 1) * batch_size]},
            name='train_rbm')
 
@@ -414,12 +408,12 @@ def test_rbm(learning_rate=0.1, training_epochs=15,
     #     Sampling from the RBM     #
     #################################
     # find out the number of test samples
-    number_of_test_samples = test_set_x.get_value(borrow=True).shape[0]
+    number_of_test_samples = dataset.test_set_input.get_value(borrow=True).shape[0]
 
     # pick random test examples, with which to initialize the persistent chain
     test_idx = rng.randint(number_of_test_samples - n_chains)
     persistent_vis_chain = theano.shared(numpy.asarray(
-            test_set_x.get_value(borrow=True)[test_idx:test_idx + n_chains],
+            dataset.test_set_input.get_value(borrow=True)[test_idx:test_idx + n_chains],
             dtype=theano.config.floatX))
 
     plot_every = 1000
@@ -464,4 +458,6 @@ def test_rbm(learning_rate=0.1, training_epochs=15,
     os.chdir('../')
 
 if __name__ == '__main__':
-    test_rbm()
+    dataset = DataSet()
+    dataset.load()
+    test_rbm(dataset)

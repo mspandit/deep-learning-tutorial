@@ -42,7 +42,6 @@ import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
-from logistic_classifier import load_data
 from utils import tile_raster_images
 
 import Image
@@ -235,9 +234,9 @@ class dA(object):
 
         return (cost, updates)
 
+from data_set import DataSet
 
-def test_dA(learning_rate=0.1, training_epochs=15,
-            dataset='mnist.pkl.gz',
+def test_dA(dataset, learning_rate=0.1, training_epochs=15,
             batch_size=20, output_folder='dA_plots'):
 
     """
@@ -254,11 +253,9 @@ def test_dA(learning_rate=0.1, training_epochs=15,
     :param dataset: path to the picked dataset
 
     """
-    datasets = load_data(dataset)
-    train_set_x, train_set_y = datasets[0]
 
     # compute number of minibatches for training, validation and testing
-    n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
+    n_train_batches = dataset.train_set_input.get_value(borrow=True).shape[0] / batch_size
 
     # allocate symbolic variables for the data
     index = T.lscalar()    # index to a [mini]batch
@@ -281,7 +278,7 @@ def test_dA(learning_rate=0.1, training_epochs=15,
                                         learning_rate=learning_rate)
 
     train_da = theano.function([index], cost, updates=updates,
-         givens={x: train_set_x[index * batch_size:
+         givens={x: dataset.train_set_input[index * batch_size:
                                 (index + 1) * batch_size]})
 
     start_time = time.clock()
@@ -326,7 +323,7 @@ def test_dA(learning_rate=0.1, training_epochs=15,
                                         learning_rate=learning_rate)
 
     train_da = theano.function([index], cost, updates=updates,
-         givens={x: train_set_x[index * batch_size:
+         givens={x: dataset.train_set_input[index * batch_size:
                                   (index + 1) * batch_size]})
 
     start_time = time.clock()
@@ -362,4 +359,6 @@ def test_dA(learning_rate=0.1, training_epochs=15,
 
 
 if __name__ == '__main__':
-    test_dA()
+    dataset = DataSet()
+    dataset.load()
+    test_dA(dataset)

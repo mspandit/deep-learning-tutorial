@@ -33,7 +33,7 @@ import theano
 import theano.tensor as T
 
 
-from logistic_classifier import LogisticRegression, load_data
+from logistic_classifier import LogisticRegression
 
 
 class HiddenLayer(object):
@@ -173,8 +173,8 @@ class MLP(object):
         self.params = self.hiddenLayer.params + self.logRegressionLayer.params
 
 
-def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
-             dataset='mnist.pkl.gz', batch_size=20, n_hidden=500):
+def test_mlp(dataset, learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
+             batch_size=20, n_hidden=500):
     """
     Demonstrate stochastic gradient descent optimization for a multilayer
     perceptron
@@ -202,16 +202,11 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
 
 
    """
-    datasets = load_data(dataset)
-
-    train_set_x, train_set_y = datasets[0]
-    valid_set_x, valid_set_y = datasets[1]
-    test_set_x, test_set_y = datasets[2]
 
     # compute number of minibatches for training, validation and testing
-    n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
-    n_valid_batches = valid_set_x.get_value(borrow=True).shape[0] / batch_size
-    n_test_batches = test_set_x.get_value(borrow=True).shape[0] / batch_size
+    n_train_batches = dataset.train_set_input.get_value(borrow=True).shape[0] / batch_size
+    n_valid_batches = dataset.valid_set_input.get_value(borrow=True).shape[0] / batch_size
+    n_test_batches = dataset.test_set_input.get_value(borrow=True).shape[0] / batch_size
 
     ######################
     # BUILD ACTUAL MODEL #
@@ -242,14 +237,14 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
     test_model = theano.function(inputs=[index],
             outputs=classifier.errors(y),
             givens={
-                x: test_set_x[index * batch_size:(index + 1) * batch_size],
-                y: test_set_y[index * batch_size:(index + 1) * batch_size]})
+                x: dataset.test_set_input[index * batch_size:(index + 1) * batch_size],
+                y: dataset.test_set_output[index * batch_size:(index + 1) * batch_size]})
 
     validate_model = theano.function(inputs=[index],
             outputs=classifier.errors(y),
             givens={
-                x: valid_set_x[index * batch_size:(index + 1) * batch_size],
-                y: valid_set_y[index * batch_size:(index + 1) * batch_size]})
+                x: dataset.valid_set_input[index * batch_size:(index + 1) * batch_size],
+                y: dataset.valid_set_output[index * batch_size:(index + 1) * batch_size]})
 
     # compute the gradient of cost with respect to theta (sotred in params)
     # the resulting gradients will be stored in a list gparams
@@ -274,8 +269,8 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
     train_model = theano.function(inputs=[index], outputs=cost,
             updates=updates,
             givens={
-                x: train_set_x[index * batch_size:(index + 1) * batch_size],
-                y: train_set_y[index * batch_size:(index + 1) * batch_size]})
+                x: dataset.train_set_input[index * batch_size:(index + 1) * batch_size],
+                y: dataset.train_set_output[index * batch_size:(index + 1) * batch_size]})
 
     ###############
     # TRAIN MODEL #
@@ -355,4 +350,6 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
 
 
 if __name__ == '__main__':
-    test_mlp()
+    dataset = DataSet()
+    dataset.load()
+    test_mlp(dataset)
