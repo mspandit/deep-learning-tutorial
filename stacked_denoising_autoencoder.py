@@ -433,15 +433,16 @@ class StackedDenoisingAutoencoder(object):
                     break
 
         end_time = time.clock()
-        print(('Optimization complete with best validation score of %f %%,'
-               'with test performance %f %%') %
-                     (best_validation_loss * 100., test_score * 100.))
         print >> sys.stderr, ('The training code for file ' +
                               os.path.split(__file__)[1] +
                               ' ran for %.2fm' % ((end_time - start_time) / 60.))
-
+        return [best_validation_loss, best_iter, test_score]
+        
 if __name__ == '__main__':
     dataset = DataSet()
     dataset.load()
     sda = StackedDenoisingAutoencoder(dataset)
     sda.evaluate()
+    print(('Optimization complete with best validation score of %f %%,'
+           'with test performance %f %%') %
+                 (best_validation_loss * 100., test_score * 100.))

@@ -244,6 +244,7 @@ class LogisticClassifier(object):
 
         best_params = None
         best_validation_loss = numpy.inf
+        best_iter = 0
         test_score = 0.
         start_time = time.clock()
 
@@ -275,6 +276,7 @@ class LogisticClassifier(object):
                             patience = max(patience, iter * patience_increase)
 
                         best_validation_loss = this_validation_loss
+                        best_iter = iter
                         # test it on the test set
 
                         test_losses = [test_model(i)
@@ -291,17 +293,19 @@ class LogisticClassifier(object):
                     break
 
         end_time = time.clock()
-        print(('Optimization complete with best validation score of %f %%,'
-               'with test performance %f %%') %
-                     (best_validation_loss * 100., test_score * 100.))
         print 'The code run for %d epochs, with %f epochs/sec' % (
             epoch, 1. * epoch / (end_time - start_time))
         print >> sys.stderr, ('The code for file ' +
                               os.path.split(__file__)[1] +
                               ' ran for %.1fs' % ((end_time - start_time)))
+        return [best_validation_loss, best_iter, test_score]
 
 if __name__ == '__main__':
     dataset = DataSet()
     dataset.load()
     classifier = LogisticClassifier(dataset)
-    classifier.evaluate()
+    best_validation_loss, best_iter, test_score = classifier.evaluate()
+    print(('Optimization complete with best validation score of %f %%,'
+           'with test performance %f %%') %
+                 (best_validation_loss * 100., test_score * 100.))
+    

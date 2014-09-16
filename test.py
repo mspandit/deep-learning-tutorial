@@ -18,11 +18,17 @@ class TestTutorials(unittest.TestCase):
 
     def test_convolutional_multilayer_perceptron(self):
         lenet5 = ConvolutionalMultilayerPerceptron(self.dataset)
-        lenet5.evaluate(n_epochs = 1, batch_size = 2, nkerns = [2, 5])
+        best_validation_loss, best_iter, test_score = lenet5.evaluate(n_epochs = 1, batch_size = 2, nkerns = [2, 5])
+        self.assertEqual(best_validation_loss, 0.52000000000000002)
+        self.assertEqual(best_iter, 49)
+        self.assertEqual(test_score, 0.45000000000000001)
         
     def test_deep_belief_network(self):
         dbn = DeepBeliefNetwork(self.dataset)
-        dbn.evaluate(pretraining_epochs = 1, training_epochs = 1, batch_size = 2)
+        best_validation_loss, best_iter, test_score = dbn.evaluate(pretraining_epochs = 1, training_epochs = 1, batch_size = 2)
+        self.assertEqual(best_validation_loss, 0.79)
+        self.assertEqual(best_iter, 49)
+        self.assertEqual(test_score, 0.76)
 
     def test_denoising_autoencoder(self):
         da = DenoisingAutoencoder(self.dataset)
@@ -30,11 +36,17 @@ class TestTutorials(unittest.TestCase):
         
     def test_logistic_stochastic_gradient_descent(self):
         lc = LogisticClassifier(self.dataset)
-        lc.evaluate(n_epochs = 1, batch_size = 2)
+        best_validation_loss, best_iter, test_score = lc.evaluate(n_epochs = 1, batch_size = 2)
+        self.assertEqual(best_validation_loss, 0.40)
+        self.assertEqual(best_iter, 49)
+        self.assertEqual(test_score, 0.30)
 
     def test_multilayer_perceptron(self):
         mp = MultilayerPerceptron(self.dataset)
-        mp.evaluate(n_epochs = 1, batch_size = 2)
+        best_validation_loss, best_iter, test_score = mp.evaluate(n_epochs = 1, batch_size = 2)
+        self.assertEqual(best_validation_loss, 0.54)
+        self.assertEqual(best_iter, 49)
+        self.assertEqual(test_score, 0.52)
         
     def test_restricted_boltzmann_machine(self):
         rbm = RestrictedBoltzmannMachine(self.dataset)
@@ -42,7 +54,10 @@ class TestTutorials(unittest.TestCase):
 
     def test_stacked_denoising_autoencoder(self):
         sda = StackedDenoisingAutoencoder(self.dataset)
-        sda.evaluate(pretraining_epochs = 1, training_epochs = 1, batch_size = 2)
+        best_validation_loss, best_iter, test_score = sda.evaluate(pretraining_epochs = 1, training_epochs = 1, batch_size = 2)
+        self.assertEqual(best_validation_loss, 0.73)
+        self.assertEqual(best_iter, 49)
+        self.assertEqual(test_score, 0.67)
         
 if __name__ == '__main__':
     unittest.main()

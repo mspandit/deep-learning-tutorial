@@ -346,16 +346,18 @@ class MultilayerPerceptron(object):
                         break
 
         end_time = time.clock()
-        print(('Optimization complete. Best validation score of %f %% '
-               'obtained at iteration %i, with test performance %f %%') %
-              (best_validation_loss * 100., best_iter + 1, test_score * 100.))
         print >> sys.stderr, ('The code for file ' +
                               os.path.split(__file__)[1] +
                               ' ran for %.2fm' % ((end_time - start_time) / 60.))
+        return [best_validation_loss, best_iter, test_score]
 
+from data_set import DataSet
 
 if __name__ == '__main__':
     dataset = DataSet()
     dataset.load()
     mlp = MultilayerPerceptron(dataset)
-    mlp.evaluate()
+    best_validation_loss, best_iter, test_score = mlp.evaluate()
+    print(('Optimization complete. Best validation score of %f %% '
+           'obtained at iteration %i, with test performance %f %%') %
+          (best_validation_loss * 100., best_iter + 1, test_score * 100.))
