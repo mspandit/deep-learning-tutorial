@@ -200,23 +200,28 @@ class SdA(object):
         # ending of a batch given `index`
         batch_end = batch_begin + batch_size
 
-        pretrain_fns = []
+        pretrain_models = []
         for dA in self.dA_layers:
             # get the cost and the updates list
-            cost, updates = dA.get_cost_updates(corruption_level,
-                                                learning_rate)
+            cost = dA.cost(corruption_level)
+            updates = dA.updates(learning_rate, corruption_level)
             # compile the theano function
-            fn = theano.function(inputs=[index,
-                              theano.Param(corruption_level, default=0.2),
-                              theano.Param(learning_rate, default=0.1)],
-                                 outputs=cost,
-                                 updates=updates,
-                                 givens={self.x: train_set_input[batch_begin:
-                                                             batch_end]})
+            fn = theano.function(
+                inputs = [
+                    index,
+                    theano.Param(corruption_level, default=0.2),
+                    theano.Param(learning_rate, default=0.1)
+                ],
+                outputs = cost,
+                updates = updates,
+                givens = {
+                    self.x: train_set_input[batch_begin : batch_end]
+                }
+            )
             # append `fn` to the list of functions
-            pretrain_fns.append(fn)
+            pretrain_models.append(fn)
 
-        return pretrain_fns
+        return pretrain_models
 
     def build_finetune_functions(self, dataset, batch_size, learning_rate):
         '''Generates a function `train` that implements one step of
@@ -254,7 +259,7 @@ class SdA(object):
         for param, gparam in zip(self.params, gparams):
             updates.append((param, param - gparam * learning_rate))
 
-        train_fn = theano.function(inputs=[index],
+        train_model = theano.function(inputs=[index],
               outputs=self.finetune_cost,
               updates=updates,
               givens={
@@ -288,26 +293,22 @@ class SdA(object):
         def test_score():
             return [test_score_i(i) for i in xrange(n_test_batches)]
 
-        return train_fn, valid_score, test_score
+        return train_model, valid_score, test_score
 
 
 from data_set import DataSet
+from trainer import Trainer
 
-class StackedDenoisingAutoencoder(object):
+class StackedDenoisingAutoencoder(Trainer):
     """docstring for StackedDenoisingAutoencoder"""
-    def __init__(self, dataset, pretraining_epochs = 15, training_epochs=1000,
-                 batch_size=1,
-                 pretrain_lr=0.001):
+    def __init__(self, dataset, pretraining_epochs = 15, n_epochs = 1000, batch_size = 1, pretrain_lr = 0.001):
         """
         :type pretraining_epochs: int
         :param pretraining_epochs: number of epoch to do pretraining
         """
-        super(StackedDenoisingAutoencoder, self).__init__()
-        self.dataset = dataset
+        super(StackedDenoisingAutoencoder, self).__init__(dataset, batch_size, n_epochs)
         self.pretraining_epochs = pretraining_epochs
-        self.batch_size = batch_size
         self.pretrain_lr = pretrain_lr
-        self.training_epochs = training_epochs
 
     def preinitialize(self):
         """docstring for preinitialize"""
@@ -347,60 +348,19 @@ class StackedDenoisingAutoencoder(object):
                 epoch_costs.append(numpy.mean(c))
             layer_epoch_costs.append(epoch_costs)
         return layer_epoch_costs
+
+    def mean_validation_loss(self):
+        """docstring for mean_validation_loss"""
+        return numpy.mean(self.validation_errors())
+        
+    def mean_test_loss(self):
+        """docstring for mean_test_loss"""
+        return numpy.mean(self.test_errors())
     
-    def train(self):
+    def train(self, patience, patience_increase = 2.0, improvement_threshold = 0.995):
         """docstring for train"""
-        # early-stopping parameters
         patience = 10 * self.n_train_batches  # look as this many examples regardless
-        patience_increase = 2.  # wait this much longer when a new best is
-                                # found
-        improvement_threshold = 0.995  # a relative improvement of this much is
-                                       # considered significant
-        validation_frequency = min(self.n_train_batches, patience / 2)
-                                      # go through this many
-                                      # minibatche before checking the network
-                                      # on the validation set; in this case we
-                                      # check every epoch
-
-        best_params = None
-        best_validation_loss = numpy.inf
-        test_score = 0.
-
-        epoch_validation_losses = []
-        done_looping = False
-        epoch = 0
-
-        while (epoch < self.training_epochs) and (not done_looping):
-            epoch = epoch + 1
-            for minibatch_index in xrange(self.n_train_batches):
-                minibatch_avg_cost = self.train_fn(minibatch_index)
-                iter = (epoch - 1) * self.n_train_batches + minibatch_index
-
-                if (iter + 1) % validation_frequency == 0:
-                    validation_losses = self.validate_model()
-                    this_validation_loss = numpy.mean(validation_losses)
-                    epoch_validation_losses.append([this_validation_loss, iter])
-                
-                    # if we got the best validation score until now
-                    if this_validation_loss < best_validation_loss:
-
-                        #improve patience if loss improvement is good enough
-                        if (this_validation_loss < best_validation_loss *
-                            improvement_threshold):
-                            patience = max(patience, iter * patience_increase)
-
-                        # save best validation score and iteration number
-                        best_validation_loss = this_validation_loss
-                        best_iter = iter
-
-                        # test it on the test set
-                        test_losses = self.test_model()
-                        test_score = numpy.mean(test_losses)
-
-                if patience <= iter:
-                    done_looping = True
-                    break
-        return epoch_validation_losses, best_validation_loss, best_iter, test_score
+        return super(StackedDenoisingAutoencoder, self).train(patience, patience_increase, improvement_threshold)
     
     def initialize(self, finetune_lr=0.1):
         """
@@ -423,9 +383,11 @@ class StackedDenoisingAutoencoder(object):
         ########################
 
         # get the training, validation and testing function for the model
-        self.train_fn, self.validate_model, self.test_model = self.sda.build_finetune_functions(
-                    dataset=self.dataset, batch_size=self.batch_size,
-                    learning_rate=finetune_lr)
+        self.train_model, self.validation_errors, self.test_errors = self.sda.build_finetune_functions(
+            dataset = self.dataset, 
+            batch_size = self.batch_size,
+            learning_rate = finetune_lr
+        )
         
 if __name__ == '__main__':
     dataset = DataSet()
@@ -440,7 +402,7 @@ if __name__ == '__main__':
                           ' ran for %.2fm' % ((end_time - start_time) / 60.))
     sda.initialize()
     start_time = time.clock()
-    epoch_validation_losses, best_validation_loss, best_iter, test_score = sda.train()
+    epoch_validation_losses, best_validation_loss, best_iter, test_score = sda.train(None)
     end_time = time.clock()
     print >> sys.stderr, ('The training code for file ' +
                           os.path.split(__file__)[1] +

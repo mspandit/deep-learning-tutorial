@@ -62,12 +62,12 @@ class TestTutorials(unittest.TestCase):
         self.assertEqual(epoch_costs, [-174.86070176730175])
 
     def test_stacked_denoising_autoencoder(self):
-        sda = StackedDenoisingAutoencoder(self.dataset, pretraining_epochs = 1, training_epochs = 1, batch_size = 2)
+        sda = StackedDenoisingAutoencoder(self.dataset, pretraining_epochs = 1, n_epochs = 1, batch_size = 2)
         sda.preinitialize()
         layer_epoch_costs = sda.pretrain()
         self.assertEqual(layer_epoch_costs, [[328.15852933515004], [771.56755018914123], [661.65193991637716]])
         sda.initialize()
-        validation_losses, best_validation_loss, best_iter, test_score = sda.train()
+        validation_losses, best_validation_loss, best_iter, test_score = sda.train(None)
         self.assertEqual(validation_losses, [[0.73, 49]])
         self.assertEqual(best_validation_loss, 0.73)
         self.assertEqual(best_iter, 49)

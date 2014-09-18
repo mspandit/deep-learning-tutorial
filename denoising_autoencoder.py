@@ -168,6 +168,7 @@ class dA(object):
             self.x = input
 
         self.params = [self.W, self.b, self.b_prime]
+        self.cost_fn = None
 
     def get_corrupted_input(self, input, corruption_level):
         """This function keeps ``1-corruption_level`` entries of the inputs the
@@ -206,33 +207,27 @@ class dA(object):
         """
         return  T.nnet.sigmoid(T.dot(hidden, self.W_prime) + self.b_prime)
 
-    def get_cost_updates(self, corruption_level, learning_rate):
-        """ This function computes the cost and the updates for one trainng
-        step of the dA """
-
-        tilde_x = self.get_corrupted_input(self.x, corruption_level)
-        y = self.get_hidden_values(tilde_x)
-        z = self.get_reconstructed_input(y)
-        # note : we sum over the size of a datapoint; if we are using
-        #        minibatches, L will be a vector, with one entry per
-        #        example in minibatch
-        L = - T.sum(self.x * T.log(z) + (1 - self.x) * T.log(1 - z), axis=1)
-        # note : L is now a vector, where each element is the
-        #        cross-entropy cost of the reconstruction of the
-        #        corresponding example of the minibatch. We need to
-        #        compute the average of all these to get the cost of
-        #        the minibatch
-        cost = T.mean(L)
-
-        # compute the gradients of the cost of the `dA` with respect
-        # to its parameters
-        gparams = T.grad(cost, self.params)
-        # generate the list of updates
-        updates = []
-        for param, gparam in zip(self.params, gparams):
-            updates.append((param, param - learning_rate * gparam))
-
-        return (cost, updates)
+    def cost(self, corruption_level):
+        """docstring for cost"""
+        if self.cost_fn == None:
+            tilde_x = self.get_corrupted_input(self.x, corruption_level)
+            y = self.get_hidden_values(tilde_x)
+            z = self.get_reconstructed_input(y)
+            # note : we sum over the size of a datapoint; if we are using
+            #        minibatches, L will be a vector, with one entry per
+            #        example in minibatch
+            L = - T.sum(self.x * T.log(z) + (1 - self.x) * T.log(1 - z), axis=1)
+            # note : L is now a vector, where each element is the
+            #        cross-entropy cost of the reconstruction of the
+            #        corresponding example of the minibatch. We need to
+            #        compute the average of all these to get the cost of
+            #        the minibatch
+            self.cost_fn = T.mean(L)
+        return self.cost_fn
+    
+    def updates(self, learning_rate, corruption_level):
+        """docstring for updates"""
+        return [(param, param - learning_rate * gparam) for param, gparam in zip(self.params, T.grad(self.cost(corruption_level), self.params))]
 
 from data_set import DataSet
 
@@ -240,6 +235,14 @@ class DenoisingAutoencoder(object):
     """docstring for DenoisingAutoencoder"""
     def __init__(self, dataset, training_epochs=15, learning_rate=0.1,
                 batch_size=20):
+        """
+        :type training_epochs: int
+        :param training_epochs: number of epochs used for training
+
+        :type learning_rate: float
+        :param learning_rate: learning rate used for training the DeNosing
+                              AutoEncoder
+        """
         super(DenoisingAutoencoder, self).__init__()
         self.dataset = dataset
         self.training_epochs = training_epochs
@@ -253,27 +256,36 @@ class DenoisingAutoencoder(object):
         ############
 
         # go through training epochs
-        uncorrupt_costs = []
+        costs = []
         for epoch in xrange(self.training_epochs):
             # go through trainng set
             c = []
             for batch_index in xrange(self.n_train_batches):
                 c.append(self.train_da(batch_index))
 
-            uncorrupt_costs.append(numpy.mean(c))
+            costs.append(numpy.mean(c))
         
-        return uncorrupt_costs
+        return costs
         
     def build_model(self, x, corruption_level = 0.0):
         """docstring for build_model_0"""
         rng = numpy.random.RandomState(123)
         theano_rng = RandomStreams(rng.randint(2 ** 30))
 
-        da = dA(numpy_rng=rng, theano_rng=theano_rng, input=x, n_visible=28 * 28, n_hidden=500)
+        da = dA(numpy_rng = rng, theano_rng = theano_rng, input = x, n_visible = 28 * 28, n_hidden = 500)
 
-        cost, updates = da.get_cost_updates(corruption_level=corruption_level, learning_rate=self.learning_rate)
+        cost = da.cost(corruption_level = corruption_level)
+        updates = da.updates(corruption_level = corruption_level, learning_rate = self.learning_rate)
 
-        self.train_da = theano.function([self.index], cost, updates=updates, givens={x: self.dataset.train_set_input[self.index * self.batch_size : (self.index + 1) * self.batch_size]})
+        self.train_da = theano.function(
+            inputs = [self.index], 
+            outputs = cost, 
+            updates = updates,
+            givens = {
+                x: self.dataset.train_set_input[self.index * self.batch_size : (self.index + 1) * self.batch_size]
+            }
+        )
+        
         costs = self.train()
         image = Image.fromarray(tile_raster_images(X=da.W.get_value(borrow=True).T, img_shape=(28, 28), tile_shape=(10, 10), tile_spacing=(1, 1)))
         image.save('filters_corruption_0.png')
@@ -281,16 +293,8 @@ class DenoisingAutoencoder(object):
         return costs
 
     def evaluate(self, output_folder='dA_plots'):
-
         """
         This demo is tested on MNIST
-
-        :type learning_rate: float
-        :param learning_rate: learning rate used for training the DeNosing
-                              AutoEncoder
-
-        :type training_epochs: int
-        :param training_epochs: number of epochs used for training
         """
         
         # compute number of minibatches for training, validation and testing
