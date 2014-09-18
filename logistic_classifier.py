@@ -144,12 +144,81 @@ class LogisticRegression(object):
 
 class LogisticClassifier(object):
     """docstring for LogisticClassifier"""
-    def __init__(self, dataset):
+    def __init__(self, dataset, batch_size=600, n_epochs=1000):
+        """
+        :type n_epochs: int
+        :param n_epochs: maximal number of epochs to run the optimizer
+        """
         super(LogisticClassifier, self).__init__()
         self.dataset = dataset
+        self.batch_size = batch_size
+        self.n_epochs = n_epochs
         
-    def evaluate(self, learning_rate=0.13, n_epochs=1000,
-                               batch_size=600):
+    def train(self):
+        """docstring for train"""
+
+        # compute number of minibatches for training, validation and testing
+        n_train_batches = self.dataset.train_set_input.get_value(borrow=True).shape[0] / self.batch_size
+        n_valid_batches = self.dataset.valid_set_input.get_value(borrow=True).shape[0] / self.batch_size
+        n_test_batches = self.dataset.test_set_input.get_value(borrow=True).shape[0] / self.batch_size
+
+        best_validation_loss = numpy.inf
+        best_iter = 0
+        test_score = 0.
+
+        # early-stopping parameters
+        patience = 5000  # look as this many examples regardless
+        patience_increase = 2  # wait this much longer when a new best is
+                                      # found
+        improvement_threshold = 0.995  # a relative improvement of this much is
+                                      # considered significant
+        validation_frequency = min(n_train_batches, patience / 2)
+                                      # go through this many
+                                      # minibatche before checking the network
+                                      # on the validation set; in this case we
+                                      # check every epoch
+
+        done_looping = False
+        epoch_losses = []
+        epoch = 0
+        while (epoch < self.n_epochs) and (not done_looping):
+            epoch = epoch + 1
+            for minibatch_index in xrange(n_train_batches):
+
+                minibatch_avg_cost = self.train_model(minibatch_index)
+                # iteration number
+                iter = (epoch - 1) * n_train_batches + minibatch_index
+
+                if (iter + 1) % validation_frequency == 0:
+                    # compute zero-one loss on validation set
+                    validation_losses = [self.validate_model(i)
+                                         for i in xrange(n_valid_batches)]
+                    this_validation_loss = numpy.mean(validation_losses)
+                    epoch_losses.append([this_validation_loss, iter])
+
+                    # if we got the best validation score until now
+                    if this_validation_loss < best_validation_loss:
+                        #improve patience if loss improvement is good enough
+                        if this_validation_loss < best_validation_loss *  \
+                           improvement_threshold:
+                            patience = max(patience, iter * patience_increase)
+
+                        best_validation_loss = this_validation_loss
+                        best_iter = iter
+                        # test it on the test set
+
+                        test_losses = [self.test_model(i)
+                                       for i in xrange(n_test_batches)]
+                        test_score = numpy.mean(test_losses)
+
+                if patience <= iter:
+                    done_looping = True
+                    break
+        
+        return [epoch_losses, best_validation_loss, best_iter, test_score]
+    
+        
+    def initialize(self, learning_rate=0.13):
         """
         Demonstrate stochastic gradient descent optimization of a log-linear
         model
@@ -159,25 +228,11 @@ class LogisticClassifier(object):
         :type learning_rate: float
         :param learning_rate: learning rate used (factor for the stochastic
                               gradient)
-
-        :type n_epochs: int
-        :param n_epochs: maximal number of epochs to run the optimizer
-
-        :type self.dataset: string
-        :param self.dataset: the path of the MNIST self.dataset file from
-                     http://www.iro.umontreal.ca/~lisa/deep/data/mnist/mnist.pkl.gz
-
         """
-
-        # compute number of minibatches for training, validation and testing
-        n_train_batches = self.dataset.train_set_input.get_value(borrow=True).shape[0] / batch_size
-        n_valid_batches = self.dataset.valid_set_input.get_value(borrow=True).shape[0] / batch_size
-        n_test_batches = self.dataset.test_set_input.get_value(borrow=True).shape[0] / batch_size
 
         ######################
         # BUILD ACTUAL MODEL #
         ######################
-        print '... building the model'
 
         # allocate symbolic variables for the data
         index = Tensor.lscalar()  # index to a [mini]batch
@@ -195,17 +250,17 @@ class LogisticClassifier(object):
 
         # compiling a Theano function that computes the mistakes that are made by
         # the model on a minibatch
-        test_model = theano.function(inputs=[index],
+        self.test_model = theano.function(inputs=[index],
                 outputs=classifier.errors(y),
                 givens={
-                    x: self.dataset.test_set_input[index * batch_size: (index + 1) * batch_size],
-                    y: self.dataset.test_set_output[index * batch_size: (index + 1) * batch_size]})
+                    x: self.dataset.test_set_input[index * self.batch_size: (index + 1) * self.batch_size],
+                    y: self.dataset.test_set_output[index * self.batch_size: (index + 1) * self.batch_size]})
 
-        validate_model = theano.function(inputs=[index],
+        self.validate_model = theano.function(inputs=[index],
                 outputs=classifier.errors(y),
                 givens={
-                    x: self.dataset.valid_set_input[index * batch_size:(index + 1) * batch_size],
-                    y: self.dataset.valid_set_output[index * batch_size:(index + 1) * batch_size]})
+                    x: self.dataset.valid_set_input[index * self.batch_size:(index + 1) * self.batch_size],
+                    y: self.dataset.valid_set_output[index * self.batch_size:(index + 1) * self.batch_size]})
 
         # compute the gradient of cost with respect to theta = (W,b)
         g_W = Tensor.grad(cost=cost, wrt=classifier.W)
@@ -219,93 +274,30 @@ class LogisticClassifier(object):
         # compiling a Theano function `train_model` that returns the cost, but in
         # the same time updates the parameter of the model based on the rules
         # defined in `updates`
-        train_model = theano.function(inputs=[index],
+        self.train_model = theano.function(inputs=[index],
                 outputs=cost,
                 updates=updates,
                 givens={
-                    x: self.dataset.train_set_input[index * batch_size:(index + 1) * batch_size],
-                    y: self.dataset.train_set_output[index * batch_size:(index + 1) * batch_size]})
+                    x: self.dataset.train_set_input[index * self.batch_size:(index + 1) * self.batch_size],
+                    y: self.dataset.train_set_output[index * self.batch_size:(index + 1) * self.batch_size]})
 
         ###############
         # TRAIN MODEL #
         ###############
-        print '... training the model'
-        # early-stopping parameters
-        patience = 5000  # look as this many examples regardless
-        patience_increase = 2  # wait this much longer when a new best is
-                                      # found
-        improvement_threshold = 0.995  # a relative improvement of this much is
-                                      # considered significant
-        validation_frequency = min(n_train_batches, patience / 2)
-                                      # go through this many
-                                      # minibatche before checking the network
-                                      # on the validation set; in this case we
-                                      # check every epoch
-
-        best_params = None
-        best_validation_loss = numpy.inf
-        best_iter = 0
-        test_score = 0.
-        start_time = time.clock()
-
-        done_looping = False
-        epoch = 0
-        while (epoch < n_epochs) and (not done_looping):
-            epoch = epoch + 1
-            for minibatch_index in xrange(n_train_batches):
-
-                minibatch_avg_cost = train_model(minibatch_index)
-                # iteration number
-                iter = (epoch - 1) * n_train_batches + minibatch_index
-
-                if (iter + 1) % validation_frequency == 0:
-                    # compute zero-one loss on validation set
-                    validation_losses = [validate_model(i)
-                                         for i in xrange(n_valid_batches)]
-                    this_validation_loss = numpy.mean(validation_losses)
-
-                    print('epoch %i, minibatch %i/%i, validation error %f %%' % \
-                        (epoch, minibatch_index + 1, n_train_batches,
-                        this_validation_loss * 100.))
-
-                    # if we got the best validation score until now
-                    if this_validation_loss < best_validation_loss:
-                        #improve patience if loss improvement is good enough
-                        if this_validation_loss < best_validation_loss *  \
-                           improvement_threshold:
-                            patience = max(patience, iter * patience_increase)
-
-                        best_validation_loss = this_validation_loss
-                        best_iter = iter
-                        # test it on the test set
-
-                        test_losses = [test_model(i)
-                                       for i in xrange(n_test_batches)]
-                        test_score = numpy.mean(test_losses)
-
-                        print(('     epoch %i, minibatch %i/%i, test error of best'
-                           ' model %f %%') %
-                            (epoch, minibatch_index + 1, n_train_batches,
-                             test_score * 100.))
-
-                if patience <= iter:
-                    done_looping = True
-                    break
-
-        end_time = time.clock()
-        print 'The code run for %d epochs, with %f epochs/sec' % (
-            epoch, 1. * epoch / (end_time - start_time))
-        print >> sys.stderr, ('The code for file ' +
-                              os.path.split(__file__)[1] +
-                              ' ran for %.1fs' % ((end_time - start_time)))
-        return [best_validation_loss, best_iter, test_score]
 
 if __name__ == '__main__':
     dataset = DataSet()
     dataset.load()
     classifier = LogisticClassifier(dataset)
-    best_validation_loss, best_iter, test_score = classifier.evaluate()
+    classifier.initialize()
+
+    start_time = time.clock()
+    epoch_losses, best_validation_loss, best_iter, test_score = classifier.train()
+    end_time = time.clock()
+    print >> sys.stderr, ('The code for file ' +
+                          os.path.split(__file__)[1] +
+                          ' ran for %.1fs' % ((end_time - start_time)))
     print(('Optimization complete with best validation score of %f %%,'
            'with test performance %f %%') %
-                 (best_validation_loss * 100., test_score * 100.))
+                 (best_validation_loss * 100.0, test_score * 100.))
     

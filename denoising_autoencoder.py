@@ -238,12 +238,49 @@ from data_set import DataSet
 
 class DenoisingAutoencoder(object):
     """docstring for DenoisingAutoencoder"""
-    def __init__(self, dataset):
+    def __init__(self, dataset, training_epochs=15, learning_rate=0.1,
+                batch_size=20):
         super(DenoisingAutoencoder, self).__init__()
-        self.dataset = dataset        
+        self.dataset = dataset
+        self.training_epochs = training_epochs
+        self.learning_rate = learning_rate
+        self.batch_size = batch_size
+        
+    def train(self):
+        """docstring for train"""
+        ############
+        # TRAINING #
+        ############
 
-    def evaluate(self, learning_rate=0.1, training_epochs=15,
-                batch_size=20, output_folder='dA_plots'):
+        # go through training epochs
+        uncorrupt_costs = []
+        for epoch in xrange(self.training_epochs):
+            # go through trainng set
+            c = []
+            for batch_index in xrange(self.n_train_batches):
+                c.append(self.train_da(batch_index))
+
+            uncorrupt_costs.append(numpy.mean(c))
+        
+        return uncorrupt_costs
+        
+    def build_model(self, x, corruption_level = 0.0):
+        """docstring for build_model_0"""
+        rng = numpy.random.RandomState(123)
+        theano_rng = RandomStreams(rng.randint(2 ** 30))
+
+        da = dA(numpy_rng=rng, theano_rng=theano_rng, input=x, n_visible=28 * 28, n_hidden=500)
+
+        cost, updates = da.get_cost_updates(corruption_level=corruption_level, learning_rate=self.learning_rate)
+
+        self.train_da = theano.function([self.index], cost, updates=updates, givens={x: self.dataset.train_set_input[self.index * self.batch_size : (self.index + 1) * self.batch_size]})
+        costs = self.train()
+        image = Image.fromarray(tile_raster_images(X=da.W.get_value(borrow=True).T, img_shape=(28, 28), tile_shape=(10, 10), tile_spacing=(1, 1)))
+        image.save('filters_corruption_0.png')
+        
+        return costs
+
+    def evaluate(self, output_folder='dA_plots'):
 
         """
         This demo is tested on MNIST
@@ -254,96 +291,21 @@ class DenoisingAutoencoder(object):
 
         :type training_epochs: int
         :param training_epochs: number of epochs used for training
-
-        :type self.dataset: string
-        :param self.dataset: path to the picked self.dataset
-
         """
-
+        
         # compute number of minibatches for training, validation and testing
-        n_train_batches = self.dataset.train_set_input.get_value(borrow=True).shape[0] / batch_size
+        self.n_train_batches = self.dataset.train_set_input.get_value(borrow=True).shape[0] / self.batch_size
 
         # allocate symbolic variables for the data
-        index = T.lscalar()    # index to a [mini]batch
+        self.index = T.lscalar()    # index to a [mini]batch
         x = T.matrix('x')  # the data is presented as rasterized images
 
         if not os.path.isdir(output_folder):
             os.makedirs(output_folder)
         os.chdir(output_folder)
-        ####################################
-        # BUILDING THE MODEL NO CORRUPTION #
-        ####################################
-        uncorrupt_costs = []
-        rng = numpy.random.RandomState(123)
-        theano_rng = RandomStreams(rng.randint(2 ** 30))
-
-        da = dA(numpy_rng=rng, theano_rng=theano_rng, input=x, n_visible=28 * 28, n_hidden=500)
-
-        cost, updates = da.get_cost_updates(corruption_level=0., learning_rate=learning_rate)
-
-        train_da = theano.function([index], cost, updates=updates, givens={x: self.dataset.train_set_input[index * batch_size : (index + 1) * batch_size]})
-
-        start_time = time.clock()
-
-        ############
-        # TRAINING #
-        ############
-
-        # go through training epochs
-        for epoch in xrange(training_epochs):
-            # go through trainng set
-            c = []
-            for batch_index in xrange(n_train_batches):
-                c.append(train_da(batch_index))
-
-            print 'Training epoch %d, cost ' % epoch, numpy.mean(c)
-            uncorrupt_costs.append(numpy.mean(c))
-            
-        end_time = time.clock()
-
-        training_time = (end_time - start_time)
-
-        print >> sys.stderr, ('The no corruption code for file ' + os.path.split(__file__)[1] + ' ran for %.2fm' % ((training_time) / 60.))
-        image = Image.fromarray(tile_raster_images(X=da.W.get_value(borrow=True).T, img_shape=(28, 28), tile_shape=(10, 10), tile_spacing=(1, 1)))
-        image.save('filters_corruption_0.png')
-
-        #####################################
-        # BUILDING THE MODEL CORRUPTION 30% #
-        #####################################
-
-        corrupt_costs = []
-        rng = numpy.random.RandomState(123)
-        theano_rng = RandomStreams(rng.randint(2 ** 30))
-
-        da = dA(numpy_rng=rng, theano_rng=theano_rng, input=x, n_visible=28 * 28, n_hidden=500)
-
-        cost, updates = da.get_cost_updates(corruption_level=0.3, learning_rate=learning_rate)
-
-        train_da = theano.function([index], cost, updates=updates, givens={x: self.dataset.train_set_input[index * batch_size : (index + 1) * batch_size]})
-
-        start_time = time.clock()
-
-        ############
-        # TRAINING #
-        ############
-
-        # go through training epochs
-        for epoch in xrange(training_epochs):
-            # go through trainng set
-            c = []
-            for batch_index in xrange(n_train_batches):
-                c.append(train_da(batch_index))
-
-            print 'Training epoch %d, cost ' % epoch, numpy.mean(c)
-            corrupt_costs.append(numpy.mean(c))
-            
-        end_time = time.clock()
-
-        training_time = (end_time - start_time)
-
-        print >> sys.stderr, ('The 30% corruption code for file ' + os.path.split(__file__)[1] + ' ran for %.2fm' % (training_time / 60.))
-        image = Image.fromarray(tile_raster_images(X=da.W.get_value(borrow=True).T, img_shape=(28, 28), tile_shape=(10, 10), tile_spacing=(1, 1)))
-        image.save('filters_corruption_30.png')
+        
+        uncorrupt_costs = self.build_model(x)
+        corrupt_costs = self.build_model(x, corruption_level = 0.3)
 
         os.chdir('../')
         

@@ -174,12 +174,75 @@ class MLP(object):
 
 class MultilayerPerceptron(object):
     """docstring for MultilayerPerceptron"""
-    def __init__(self, dataset):
+    def __init__(self, dataset, n_epochs = 1000,
+                 batch_size = 20):
+        """
+        :type n_epochs: int
+        :param n_epochs: maximal number of epochs to run the optimizer
+        """
         super(MultilayerPerceptron, self).__init__()
         self.dataset = dataset
+        self.n_epochs = n_epochs
+        self.batch_size = batch_size
+        
+    def train(self):
+        """docstring for train"""
+        n_train_batches = self.dataset.train_set_input.get_value(borrow=True).shape[0] / self.batch_size
+        n_valid_batches = self.dataset.valid_set_input.get_value(borrow=True).shape[0] / self.batch_size
+        n_test_batches = self.dataset.test_set_input.get_value(borrow=True).shape[0] / self.batch_size
+        best_validation_loss = numpy.inf
+        best_iter = 0
+        test_score = 0.
+        # early-stopping parameters
+        patience = 10000  # look as this many examples regardless
+        patience_increase = 2  # wait this much longer when a new best is
+                               # found
+        improvement_threshold = 0.995  # a relative improvement of this much is
+                                       # considered significant
+        validation_frequency = min(n_train_batches, patience / 2)
+                                      # go through this many
+                                      # minibatche before checking the network
+                                      # on the validation set; in this case we
+                                      # check every epoch
+        epoch = 0
+        epoch_losses = []
+        done_looping = False
+        while (epoch < self.n_epochs) and (not done_looping):
+            epoch = epoch + 1
+            for minibatch_index in xrange(n_train_batches):
 
-    def evaluate(self, learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
-                 batch_size=20, n_hidden=500):
+                minibatch_avg_cost = self.train_model(minibatch_index)
+                # iteration number
+                iter = (epoch - 1) * n_train_batches + minibatch_index
+
+                if (iter + 1) % validation_frequency == 0:
+                    # compute zero-one loss on validation set
+                    validation_losses = [self.validate_model(i) for i
+                                         in xrange(n_valid_batches)]
+                    this_validation_loss = numpy.mean(validation_losses)
+                    epoch_losses.append([this_validation_loss, iter])
+
+                    # if we got the best validation score until now
+                    if this_validation_loss < best_validation_loss:
+                        #improve patience if loss improvement is good enough
+                        if this_validation_loss < best_validation_loss *  \
+                               improvement_threshold:
+                            patience = max(patience, iter * patience_increase)
+
+                        best_validation_loss = this_validation_loss
+                        best_iter = iter
+
+                        # test it on the test set
+                        test_losses = [self.test_model(i) for i
+                                       in xrange(n_test_batches)]
+                        test_score = numpy.mean(test_losses)
+
+                if patience <= iter:
+                        done_looping = True
+                        break
+        return [epoch_losses, test_score]
+
+    def initialize(self, learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_hidden=500):
         """
         Demonstrate stochastic gradient descent optimization for a multilayer
         perceptron
@@ -197,26 +260,11 @@ class MultilayerPerceptron(object):
         :type L2_reg: float
         :param L2_reg: L2-norm's weight when added to the cost (see
         regularization)
-
-        :type n_epochs: int
-        :param n_epochs: maximal number of epochs to run the optimizer
-
-        :type self.dataset: string
-        :param self.dataset: the path of the MNIST self.dataset file from
-                     http://www.iro.umontreal.ca/~lisa/deep/data/mnist/mnist.pkl.gz
-
-
-       """
-
-        # compute number of minibatches for training, validation and testing
-        n_train_batches = self.dataset.train_set_input.get_value(borrow=True).shape[0] / batch_size
-        n_valid_batches = self.dataset.valid_set_input.get_value(borrow=True).shape[0] / batch_size
-        n_test_batches = self.dataset.test_set_input.get_value(borrow=True).shape[0] / batch_size
-
+        """
+       
         ######################
         # BUILD ACTUAL MODEL #
         ######################
-        print '... building the model'
 
         # allocate symbolic variables for the data
         index = T.lscalar()  # index to a [mini]batch
@@ -233,23 +281,27 @@ class MultilayerPerceptron(object):
         # the cost we minimize during training is the negative log likelihood of
         # the model plus the regularization terms (L1 and L2); cost is expressed
         # here symbolically
-        cost = classifier.negative_log_likelihood(y) \
-             + L1_reg * classifier.L1 \
-             + L2_reg * classifier.L2_sqr
+        cost = classifier.negative_log_likelihood(y) + L1_reg * classifier.L1 + L2_reg * classifier.L2_sqr
 
         # compiling a Theano function that computes the mistakes that are made
         # by the model on a minibatch
-        test_model = theano.function(inputs=[index],
-                outputs=classifier.errors(y),
-                givens={
-                    x: self.dataset.test_set_input[index * batch_size:(index + 1) * batch_size],
-                    y: self.dataset.test_set_output[index * batch_size:(index + 1) * batch_size]})
+        self.test_model = theano.function(
+            inputs = [index],
+            outputs = classifier.errors(y),
+            givens = {
+                x: self.dataset.test_set_input[index * self.batch_size:(index + 1) * self.batch_size],
+                y: self.dataset.test_set_output[index * self.batch_size:(index + 1) * self.batch_size]
+            }
+        )
 
-        validate_model = theano.function(inputs=[index],
-                outputs=classifier.errors(y),
-                givens={
-                    x: self.dataset.valid_set_input[index * batch_size:(index + 1) * batch_size],
-                    y: self.dataset.valid_set_output[index * batch_size:(index + 1) * batch_size]})
+        self.validate_model = theano.function(
+            inputs = [index],
+            outputs = classifier.errors(y),
+            givens = {
+                x: self.dataset.valid_set_input[index * self.batch_size:(index + 1) * self.batch_size],
+                y: self.dataset.valid_set_output[index * self.batch_size:(index + 1) * self.batch_size]
+            }
+        )
 
         # compute the gradient of cost with respect to theta (sotred in params)
         # the resulting gradients will be stored in a list gparams
@@ -271,85 +323,19 @@ class MultilayerPerceptron(object):
         # compiling a Theano function `train_model` that returns the cost, but
         # in the same time updates the parameter of the model based on the rules
         # defined in `updates`
-        train_model = theano.function(inputs=[index], outputs=cost,
-                updates=updates,
-                givens={
-                    x: self.dataset.train_set_input[index * batch_size:(index + 1) * batch_size],
-                    y: self.dataset.train_set_output[index * batch_size:(index + 1) * batch_size]})
+        self.train_model = theano.function(
+            inputs = [index], 
+            outputs = cost,
+            updates = updates,
+            givens = {
+                x: self.dataset.train_set_input[index * self.batch_size:(index + 1) * self.batch_size],
+                y: self.dataset.train_set_output[index * self.batch_size:(index + 1) * self.batch_size]
+            }
+        )
 
         ###############
         # TRAIN MODEL #
         ###############
-        print '... training'
-
-        # early-stopping parameters
-        patience = 10000  # look as this many examples regardless
-        patience_increase = 2  # wait this much longer when a new best is
-                               # found
-        improvement_threshold = 0.995  # a relative improvement of this much is
-                                       # considered significant
-        validation_frequency = min(n_train_batches, patience / 2)
-                                      # go through this many
-                                      # minibatche before checking the network
-                                      # on the validation set; in this case we
-                                      # check every epoch
-
-        best_params = None
-        best_validation_loss = numpy.inf
-        best_iter = 0
-        test_score = 0.
-        start_time = time.clock()
-
-        epoch = 0
-        done_looping = False
-
-        while (epoch < n_epochs) and (not done_looping):
-            epoch = epoch + 1
-            for minibatch_index in xrange(n_train_batches):
-
-                minibatch_avg_cost = train_model(minibatch_index)
-                # iteration number
-                iter = (epoch - 1) * n_train_batches + minibatch_index
-
-                if (iter + 1) % validation_frequency == 0:
-                    # compute zero-one loss on validation set
-                    validation_losses = [validate_model(i) for i
-                                         in xrange(n_valid_batches)]
-                    this_validation_loss = numpy.mean(validation_losses)
-
-                    print('epoch %i, minibatch %i/%i, validation error %f %%' %
-                         (epoch, minibatch_index + 1, n_train_batches,
-                          this_validation_loss * 100.))
-
-                    # if we got the best validation score until now
-                    if this_validation_loss < best_validation_loss:
-                        #improve patience if loss improvement is good enough
-                        if this_validation_loss < best_validation_loss *  \
-                               improvement_threshold:
-                            patience = max(patience, iter * patience_increase)
-
-                        best_validation_loss = this_validation_loss
-                        best_iter = iter
-
-                        # test it on the test set
-                        test_losses = [test_model(i) for i
-                                       in xrange(n_test_batches)]
-                        test_score = numpy.mean(test_losses)
-
-                        print(('     epoch %i, minibatch %i/%i, test error of '
-                               'best model %f %%') %
-                              (epoch, minibatch_index + 1, n_train_batches,
-                               test_score * 100.))
-
-                if patience <= iter:
-                        done_looping = True
-                        break
-
-        end_time = time.clock()
-        print >> sys.stderr, ('The code for file ' +
-                              os.path.split(__file__)[1] +
-                              ' ran for %.2fm' % ((end_time - start_time) / 60.))
-        return [best_validation_loss, best_iter, test_score]
 
 from data_set import DataSet
 
@@ -357,7 +343,13 @@ if __name__ == '__main__':
     dataset = DataSet()
     dataset.load()
     mlp = MultilayerPerceptron(dataset)
-    best_validation_loss, best_iter, test_score = mlp.evaluate()
+    mlp.initialize()
+    start_time = time.clock()
+    epoch_losses, test_score = self.train()
+    end_time = time.clock()
+    print >> sys.stderr, ('The code for file ' +
+                          os.path.split(__file__)[1] +
+                          ' ran for %.2fm' % ((end_time - start_time) / 60.))
     print(('Optimization complete. Best validation score of %f %% '
            'obtained at iteration %i, with test performance %f %%') %
           (best_validation_loss * 100., best_iter + 1, test_score * 100.))

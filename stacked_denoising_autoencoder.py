@@ -293,95 +293,68 @@ from data_set import DataSet
 
 class StackedDenoisingAutoencoder(object):
     """docstring for StackedDenoisingAutoencoder"""
-    def __init__(self, dataset):
-        super(StackedDenoisingAutoencoder, self).__init__()
-        self.dataset = dataset
-
-    def evaluate(self, finetune_lr=0.1, pretraining_epochs=15,
-                 pretrain_lr=0.001, training_epochs=1000,
-                 batch_size=1):
+    def __init__(self, dataset, pretraining_epochs = 15, training_epochs=1000,
+                 batch_size=1,
+                 pretrain_lr=0.001):
         """
-        Demonstrates how to train and test a stochastic denoising autoencoder.
-
-        This is demonstrated on MNIST.
-
-        :type learning_rate: float
-        :param learning_rate: learning rate used in the finetune stage
-        (factor for the stochastic gradient)
-
         :type pretraining_epochs: int
         :param pretraining_epochs: number of epoch to do pretraining
-
-        :type pretrain_lr: float
-        :param pretrain_lr: learning rate to be used during pre-training
-
-        :type n_iter: int
-        :param n_iter: maximal number of iterations ot run the optimizer
-
-        :type self.dataset: string
-        :param self.dataset: path the the pickled self.dataset
-
         """
+        super(StackedDenoisingAutoencoder, self).__init__()
+        self.dataset = dataset
+        self.pretraining_epochs = pretraining_epochs
+        self.batch_size = batch_size
+        self.pretrain_lr = pretrain_lr
+        self.training_epochs = training_epochs
 
+    def preinitialize(self):
+        """docstring for preinitialize"""
         # compute number of minibatches for training, validation and testing
-        n_train_batches = self.dataset.train_set_input.get_value(borrow=True).shape[0]
-        n_train_batches /= batch_size
+        self.n_train_batches = self.dataset.train_set_input.get_value(borrow=True).shape[0] / self.batch_size
 
         # numpy random generator
-        numpy_rng = numpy.random.RandomState(89677)
-        print '... building the model'
+        self.numpy_rng = numpy.random.RandomState(89677)
+
         # construct the stacked denoising autoencoder class
-        sda = SdA(numpy_rng=numpy_rng, n_ins=28 * 28,
+        self.sda = SdA(numpy_rng=self.numpy_rng, n_ins=28 * 28,
                   hidden_layers_sizes=[1000, 1000, 1000],
                   n_outs=10)
 
         #########################
         # PRETRAINING THE MODEL #
         #########################
-        print '... getting the pretraining functions'
-        pretraining_fns = sda.pretraining_functions(train_set_input=self.dataset.train_set_input,
-                                                    batch_size=batch_size)
-
-        print '... pre-training the model'
-        start_time = time.clock()
+        self.pretraining_fns = self.sda.pretraining_functions(train_set_input=self.dataset.train_set_input,
+                                                    batch_size=self.batch_size)
+    
+    def pretrain(self):
+        """docstring for pretrain"""
+    
         ## Pre-train layer-wise
         corruption_levels = [.1, .2, .3]
-        for i in xrange(sda.n_layers):
+        layer_epoch_costs = []
+        for i in xrange(self.sda.n_layers):
             # go through pretraining epochs
-            for epoch in xrange(pretraining_epochs):
+            epoch_costs = []
+            for epoch in xrange(self.pretraining_epochs):
                 # go through the training set
                 c = []
-                for batch_index in xrange(n_train_batches):
-                    c.append(pretraining_fns[i](index=batch_index,
+                for batch_index in xrange(self.n_train_batches):
+                    c.append(self.pretraining_fns[i](index=batch_index,
                              corruption=corruption_levels[i],
-                             lr=pretrain_lr))
-                print 'Pre-training layer %i, epoch %d, cost ' % (i, epoch),
-                print numpy.mean(c)
-
-        end_time = time.clock()
-
-        print >> sys.stderr, ('The pretraining code for file ' +
-                              os.path.split(__file__)[1] +
-                              ' ran for %.2fm' % ((end_time - start_time) / 60.))
-
-        ########################
-        # FINETUNING THE MODEL #
-        ########################
-
-        # get the training, validation and testing function for the model
-        print '... getting the finetuning functions'
-        train_fn, validate_model, test_model = sda.build_finetune_functions(
-                    dataset=self.dataset, batch_size=batch_size,
-                    learning_rate=finetune_lr)
-
-        print '... finetunning the model'
+                             lr=self.pretrain_lr))
+                epoch_costs.append(numpy.mean(c))
+            layer_epoch_costs.append(epoch_costs)
+        return layer_epoch_costs
+    
+    def train(self):
+        """docstring for train"""
         # early-stopping parameters
-        patience = 10 * n_train_batches  # look as this many examples regardless
+        patience = 10 * self.n_train_batches  # look as this many examples regardless
         patience_increase = 2.  # wait this much longer when a new best is
                                 # found
         improvement_threshold = 0.995  # a relative improvement of this much is
                                        # considered significant
-        validation_frequency = min(n_train_batches, patience / 2)
+        validation_frequency = min(self.n_train_batches, patience / 2)
                                       # go through this many
                                       # minibatche before checking the network
                                       # on the validation set; in this case we
@@ -390,24 +363,22 @@ class StackedDenoisingAutoencoder(object):
         best_params = None
         best_validation_loss = numpy.inf
         test_score = 0.
-        start_time = time.clock()
 
+        epoch_validation_losses = []
         done_looping = False
         epoch = 0
 
-        while (epoch < training_epochs) and (not done_looping):
+        while (epoch < self.training_epochs) and (not done_looping):
             epoch = epoch + 1
-            for minibatch_index in xrange(n_train_batches):
-                minibatch_avg_cost = train_fn(minibatch_index)
-                iter = (epoch - 1) * n_train_batches + minibatch_index
+            for minibatch_index in xrange(self.n_train_batches):
+                minibatch_avg_cost = self.train_fn(minibatch_index)
+                iter = (epoch - 1) * self.n_train_batches + minibatch_index
 
                 if (iter + 1) % validation_frequency == 0:
-                    validation_losses = validate_model()
+                    validation_losses = self.validate_model()
                     this_validation_loss = numpy.mean(validation_losses)
-                    print('epoch %i, minibatch %i/%i, validation error %f %%' %
-                          (epoch, minibatch_index + 1, n_train_batches,
-                           this_validation_loss * 100.))
-
+                    epoch_validation_losses.append([this_validation_loss, iter])
+                
                     # if we got the best validation score until now
                     if this_validation_loss < best_validation_loss:
 
@@ -421,28 +392,57 @@ class StackedDenoisingAutoencoder(object):
                         best_iter = iter
 
                         # test it on the test set
-                        test_losses = test_model()
+                        test_losses = self.test_model()
                         test_score = numpy.mean(test_losses)
-                        print(('     epoch %i, minibatch %i/%i, test error of '
-                               'best model %f %%') %
-                              (epoch, minibatch_index + 1, n_train_batches,
-                               test_score * 100.))
 
                 if patience <= iter:
                     done_looping = True
                     break
+        return epoch_validation_losses, best_validation_loss, best_iter, test_score
+    
+    def initialize(self, finetune_lr=0.1):
+        """
+        Demonstrates how to train and test a stochastic denoising autoencoder.
 
-        end_time = time.clock()
-        print >> sys.stderr, ('The training code for file ' +
-                              os.path.split(__file__)[1] +
-                              ' ran for %.2fm' % ((end_time - start_time) / 60.))
-        return [best_validation_loss, best_iter, test_score]
+        This is demonstrated on MNIST.
+
+        :type learning_rate: float
+        :param learning_rate: learning rate used in the finetune stage
+        (factor for the stochastic gradient)
+
+        :type pretrain_lr: float
+        :param pretrain_lr: learning rate to be used during pre-training
+
+        :type n_iter: int
+        :param n_iter: maximal number of iterations ot run the optimizer
+        """
+        ########################
+        # FINETUNING THE MODEL #
+        ########################
+
+        # get the training, validation and testing function for the model
+        self.train_fn, self.validate_model, self.test_model = self.sda.build_finetune_functions(
+                    dataset=self.dataset, batch_size=self.batch_size,
+                    learning_rate=finetune_lr)
         
 if __name__ == '__main__':
     dataset = DataSet()
     dataset.load()
     sda = StackedDenoisingAutoencoder(dataset)
-    sda.evaluate()
+    sda.preinitialize()
+    start_time = time.clock()
+    layer_epoch_costs = sda.pretrain()
+    end_time = time.clock()
+    print >> sys.stderr, ('The pretraining code for file ' +
+                          os.path.split(__file__)[1] +
+                          ' ran for %.2fm' % ((end_time - start_time) / 60.))
+    sda.initialize()
+    start_time = time.clock()
+    epoch_validation_losses, best_validation_loss, best_iter, test_score = sda.train()
+    end_time = time.clock()
+    print >> sys.stderr, ('The training code for file ' +
+                          os.path.split(__file__)[1] +
+                          ' ran for %.2fm' % ((end_time - start_time) / 60.))
     print(('Optimization complete with best validation score of %f %%,'
            'with test performance %f %%') %
                  (best_validation_loss * 100., test_score * 100.))
