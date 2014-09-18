@@ -72,30 +72,45 @@ class LogisticRegression(object):
 
         """
 
-        # initialize with 0 the weights W as a matrix of shape (n_in, n_out)
+        # initialize with 0 the weights as a matrix of shape (n_in, n_out)
         self.weights = theano.shared(
             value = numpy.zeros((n_in, n_out), dtype = theano.config.floatX), 
             name = 'weights', 
             borrow = True
         )
-        # initialize the baises b as a vector of n_out 0s
+        # initialize the baises as a vector of n_out 0s
         self.biases = theano.shared(
             value = numpy.zeros((n_out,), dtype = theano.config.floatX), 
             name = 'biases', 
             borrow = True
         )
 
-        # compute vector of class-membership probabilities in symbolic form
-        self.p_y_given_x = Tensor.nnet.softmax(Tensor.dot(input, self.weights) + self.biases)
+        # function to compute vector of class-membership probabilities
+        self.output_probabilities = Tensor.nnet.softmax(Tensor.dot(input, self.weights) + self.biases)
 
-        # compute prediction as class whose probability is maximal in
-        # symbolic form
-        self.y_pred = Tensor.argmax(self.p_y_given_x, axis=1)
+        # function to compute prediction as class whose probability is maximal
+        self.predicted_output = Tensor.argmax(self.output_probabilities, axis = 1)
 
         # parameters of the model
         self.params = [self.weights, self.biases]
+        self.negative_log_likelihood_fn = None
 
-    def negative_log_likelihood(self, y):
+    def weights_gradient(self, outputs):
+        """docstring for weights_gradient"""
+        return Tensor.grad(cost = self.negative_log_likelihood(outputs), wrt = self.weights)
+        
+    def biases_gradient(self, outputs):
+        """docstring for biases_gradient"""
+        return Tensor.grad(cost = self.negative_log_likelihood(outputs), wrt = self.biases)
+        
+    def updates(self, outputs, learning_rate):
+        """Specify how to update the parameters of the model as a list of (variable, update expression) pairs."""
+        return [
+            (self.weights, self.weights - learning_rate * self.weights_gradient(outputs)),
+            (self.biases, self.biases - learning_rate * self.biases_gradient(outputs))
+        ]
+    
+    def negative_log_likelihood(self, outputs):
         """Return the mean of the negative log-likelihood of the prediction
         of this model under a given target distribution.
 
@@ -105,44 +120,46 @@ class LogisticRegression(object):
             \frac{1}{|\mathcal{D}|} \sum_{i=0}^{|\mathcal{D}|} \log(P(Y=y^{(i)}|x^{(i)}, W,b)) \\
                 \ell (\theta=\{W,b\}, \mathcal{D})
 
-        :type y: theano.tensor.TensorType
-        :param y: corresponds to a vector that gives for each example the
+        :type outputs: theano.tensor.TensorType
+        :param outputs: corresponds to a vector that gives for each example the
                   correct label
 
         Note: we use the mean instead of the sum so that
               the learning rate is less dependent on the batch size
         """
-        # y.shape[0] is (symbolically) the number of rows in y, i.e.,
+        # outputs.shape[0] is (symbolically) the number of rows in outputs, i.e.,
         # number of examples (call it n) in the minibatch
-        # Tensor.arange(y.shape[0]) is a symbolic vector which will contain
-        # [0,1,2,... n-1] Tensor.log(self.p_y_given_x) is a matrix of
+        # Tensor.arange(outputs.shape[0]) is a symbolic vector which will contain
+        # [0,1,2,... n-1] Tensor.log(self.output_probabilities) is a matrix of
         # Log-Probabilities (call it LP) with one row per example and
-        # one column per class LP[Tensor.arange(y.shape[0]),y] is a vector
-        # v containing [LP[0,y[0]], LP[1,y[1]], LP[2,y[2]], ...,
-        # LP[n-1,y[n-1]]] and Tensor.mean(LP[Tensor.arange(y.shape[0]),y]) is
+        # one column per class LP[Tensor.arange(outputs.shape[0]),outputs] is a vector
+        # v containing [LP[0,outputs[0]], LP[1,outputs[1]], LP[2,outputs[2]], ...,
+        # LP[n-1,outputs[n-1]]] and Tensor.mean(LP[Tensor.arange(outputs.shape[0]),outputs]) is
         # the mean (across minibatch examples) of the elements in v,
         # i.e., the mean log-likelihood across the minibatch.
-        return -Tensor.mean(Tensor.log(self.p_y_given_x)[Tensor.arange(y.shape[0]), y])
+        if self.negative_log_likelihood_fn == None:
+            self.negative_log_likelihood_fn = -Tensor.mean(Tensor.log(self.output_probabilities)[Tensor.arange(outputs.shape[0]), outputs])
+        return self.negative_log_likelihood_fn
 
-    def errors(self, y):
+    def errors(self, outputs):
         """Return a float representing the number of errors in the minibatch
         over the total number of examples of the minibatch ; zero one
         loss over the size of the minibatch
 
-        :type y: theano.tensor.TensorType
-        :param y: corresponds to a vector that gives for each example the
+        :type outputs: theano.tensor.TensorType
+        :param outputs: corresponds to a vector that gives for each example the
                   correct label
         """
 
-        # check if y has same dimension of y_pred
-        if y.ndim != self.y_pred.ndim:
-            raise TypeError('y should have the same shape as self.y_pred',
-                ('y', target.type, 'y_pred', self.y_pred.type))
-        # check if y is of the correct datatype
-        if y.dtype.startswith('int'):
+        # check if outputs has same dimension of predicted_output
+        if outputs.ndim != self.predicted_output.ndim:
+            raise TypeError('outputs should have the same shape as self.predicted_output',
+                ('outputs', target.type, 'predicted_output', self.predicted_output.type))
+        # check if outputs is of the correct datatype
+        if outputs.dtype.startswith('int'):
             # the Tensor.neq operator returns a vector of 0s and 1s, where 1
             # represents a mistake in prediction
-            return Tensor.mean(Tensor.neq(self.y_pred, y))
+            return Tensor.mean(Tensor.neq(self.predicted_output, outputs))
         else:
             raise NotImplementedError()
 
@@ -157,14 +174,22 @@ class LogisticClassifier(object):
         self.dataset = dataset
         self.batch_size = batch_size
         self.n_epochs = n_epochs
+        self.n_valid_batches = self.dataset.valid_set_input.get_value(borrow=True).shape[0] / self.batch_size
+        self.n_test_batches = self.dataset.test_set_input.get_value(borrow=True).shape[0] / self.batch_size
+        
+    def mean_validation_loss(self):
+        """docstring for mean_validation_loss"""
+        return numpy.mean([self.validation_errors(batch_index) for batch_index in xrange(self.n_valid_batches)])
+        
+    def mean_test_loss(self):
+        """docstring for mean_test_loss"""
+        return numpy.mean([self.test_errors(batch_index) for batch_index in xrange(self.n_test_batches)])
         
     def train(self):
         """docstring for train"""
 
         # compute number of minibatches for training, validation and testing
         n_train_batches = self.dataset.train_set_input.get_value(borrow=True).shape[0] / self.batch_size
-        n_valid_batches = self.dataset.valid_set_input.get_value(borrow=True).shape[0] / self.batch_size
-        n_test_batches = self.dataset.test_set_input.get_value(borrow=True).shape[0] / self.batch_size
 
         best_validation_loss = numpy.inf
         best_iter = 0
@@ -189,15 +214,13 @@ class LogisticClassifier(object):
             epoch = epoch + 1
             for minibatch_index in xrange(n_train_batches):
 
-                minibatch_avg_cost = self.train_model(minibatch_index)
+                self.train_model(minibatch_index)
+                
                 # iteration number
                 iter = (epoch - 1) * n_train_batches + minibatch_index
 
                 if (iter + 1) % validation_frequency == 0:
-                    # compute zero-one loss on validation set
-                    validation_losses = [self.validate_model(i)
-                                         for i in xrange(n_valid_batches)]
-                    this_validation_loss = numpy.mean(validation_losses)
+                    this_validation_loss = self.mean_validation_loss()
                     epoch_losses.append([this_validation_loss, iter])
 
                     # if we got the best validation score until now
@@ -209,11 +232,7 @@ class LogisticClassifier(object):
 
                         best_validation_loss = this_validation_loss
                         best_iter = iter
-                        # test it on the test set
-
-                        test_losses = [self.test_model(i)
-                                       for i in xrange(n_test_batches)]
-                        test_score = numpy.mean(test_losses)
+                        test_score = self.mean_test_loss()
 
                 if patience <= iter:
                     done_looping = True
@@ -248,22 +267,18 @@ class LogisticClassifier(object):
         # Each MNIST image has size 28*28
         classifier = LogisticRegression(input = inputs, n_in = 28 * 28, n_out = 10)
 
-        # the cost we minimize during training is the negative log likelihood of
-        # the model in symbolic format
-        cost = classifier.negative_log_likelihood(outputs)
-
         # compiling a Theano function that computes the mistakes that are made by
         # the model on a minibatch
-        self.test_model = theano.function(
+        self.test_errors = theano.function(
             inputs = [index],
             outputs = classifier.errors(outputs),
             givens = {
-                    inputs: self.dataset.test_set_input[index * self.batch_size: (index + 1) * self.batch_size],
-                    outputs: self.dataset.test_set_output[index * self.batch_size: (index + 1) * self.batch_size]
+                inputs: self.dataset.test_set_input[index * self.batch_size: (index + 1) * self.batch_size],
+                outputs: self.dataset.test_set_output[index * self.batch_size: (index + 1) * self.batch_size]
             }
         )
 
-        self.validate_model = theano.function(
+        self.validation_errors = theano.function(
             inputs = [index],
             outputs = classifier.errors(outputs),
             givens = {
@@ -272,24 +287,16 @@ class LogisticClassifier(object):
             }
         )
 
+        # the cost we minimize during training is the negative log likelihood of
+        # the model in symbolic format
         # compute the gradient of cost with respect to theta = (W,b)
-        g_W = Tensor.grad(cost = cost, wrt = classifier.weights)
-        g_b = Tensor.grad(cost = cost, wrt = classifier.biases)
-
-        # specify how to update the parameters of the model as a list of
-        # (variable, update expression) pairs.
-        updates = [
-            (classifier.weights, classifier.weights - learning_rate * g_W),
-            (classifier.biases, classifier.biases - learning_rate * g_b)
-        ]
 
         # compiling a Theano function `train_model` that returns the cost, but in
         # the same time updates the parameter of the model based on the rules
         # defined in `updates`
         self.train_model = theano.function(
             inputs = [index],
-            outputs = cost,
-            updates = updates,
+            updates = classifier.updates(outputs, learning_rate),
             givens = {
                 inputs: self.dataset.train_set_input[index * self.batch_size:(index + 1) * self.batch_size],
                 outputs: self.dataset.train_set_output[index * self.batch_size:(index + 1) * self.batch_size]
