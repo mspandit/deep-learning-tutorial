@@ -37,16 +37,16 @@ from logistic_classifier import LogisticRegression
 
 
 class HiddenLayer(object):
-    def __init__(self, rng, input, n_in, n_out, W=None, b=None,
+    def __init__(self, rng, input, n_in, n_out, weights=None, biases=None,
                  activation=T.tanh):
         """
         Typical hidden layer of a MLP: units are fully-connected and have
-        sigmoidal activation function. Weight matrix W is of shape (n_in,n_out)
+        sigmoidal activation function. Weight matrix weights is of shape (n_in,n_out)
         and the bias vector b is of shape (n_out,).
 
         NOTE : The nonlinearity used here is tanh
 
-        Hidden unit activation is given by: tanh(dot(input,W) + b)
+        Hidden unit activation is given by: tanh(dot(input, weights) + b)
 
         :type rng: numpy.random.RandomState
         :param rng: a random number generator used to initialize weights
@@ -66,7 +66,7 @@ class HiddenLayer(object):
         """
         self.input = input
 
-        # `W` is initialized with `W_values` which is uniformely sampled
+        # `weights` is initialized with `weights_values` which is uniformely sampled
         # from sqrt(-6./(n_in+n_hidden)) and sqrt(6./(n_in+n_hidden))
         # for tanh activation function
         # the output of uniform if converted using asarray to dtype
@@ -78,28 +78,32 @@ class HiddenLayer(object):
         #        compared to tanh
         #        We have no info for other function, so we use the same as
         #        tanh.
-        if W is None:
-            W_values = numpy.asarray(rng.uniform(
-                    low=-numpy.sqrt(6. / (n_in + n_out)),
-                    high=numpy.sqrt(6. / (n_in + n_out)),
-                    size=(n_in, n_out)), dtype=theano.config.floatX)
+        if weights is None:
+            weights_values = numpy.asarray(
+                rng.uniform(
+                    low = -numpy.sqrt(6.0 / (n_in + n_out)),
+                    high = numpy.sqrt(6.0 / (n_in + n_out)),
+                    size = (n_in, n_out)
+                ), 
+                dtype = theano.config.floatX
+            )
             if activation == theano.tensor.nnet.sigmoid:
-                W_values *= 4
+                weights_values *= 4
 
-            W = theano.shared(value=W_values, name='W', borrow=True)
+            weights = theano.shared(value = weights_values, name='weights', borrow=True)
 
-        if b is None:
-            b_values = numpy.zeros((n_out,), dtype=theano.config.floatX)
-            b = theano.shared(value=b_values, name='b', borrow=True)
+        if biases is None:
+            biases_values = numpy.zeros((n_out,), dtype=theano.config.floatX)
+            biases = theano.shared(value = biases_values, name='biases', borrow=True)
 
-        self.W = W
-        self.b = b
+        self.weights = weights
+        self.biases = biases
 
-        lin_output = T.dot(input, self.W) + self.b
+        lin_output = T.dot(input, self.weights) + self.biases
         self.output = (lin_output if activation is None
                        else activation(lin_output))
         # parameters of the model
-        self.params = [self.W, self.b]
+        self.params = [self.weights, self.biases]
 
 
 class MLP(object):
@@ -140,9 +144,13 @@ class MLP(object):
         # into a HiddenLayer with a tanh activation function connected to the
         # LogisticRegression layer; the activation function can be replaced by
         # sigmoid or any other nonlinear function
-        self.hiddenLayer = HiddenLayer(rng=rng, input=input,
-                                       n_in=n_in, n_out=n_hidden,
-                                       activation=T.tanh)
+        self.hiddenLayer = HiddenLayer(
+            rng = rng, 
+            input = input,
+            n_in = n_in, 
+            n_out = n_hidden,
+            activation = T.tanh
+        )
 
         # The logistic regression layer gets as input the hidden units
         # of the hidden layer
@@ -153,13 +161,13 @@ class MLP(object):
 
         # L1 norm ; one regularization option is to enforce L1 norm to
         # be small
-        self.L1 = abs(self.hiddenLayer.W).sum() \
-                + abs(self.logRegressionLayer.W).sum()
+        self.L1 = abs(self.hiddenLayer.weights).sum() \
+                + abs(self.logRegressionLayer.weights).sum()
 
         # square of L2 norm ; one regularization option is to enforce
         # square of L2 norm to be small
-        self.L2_sqr = (self.hiddenLayer.W ** 2).sum() \
-                    + (self.logRegressionLayer.W ** 2).sum()
+        self.L2_sqr = (self.hiddenLayer.weights ** 2).sum() \
+                    + (self.logRegressionLayer.weights ** 2).sum()
 
         # negative log likelihood of the MLP is given by the negative
         # log likelihood of the output of the model, computed in the

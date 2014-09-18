@@ -143,13 +143,15 @@ class SdA(object):
 
             # Construct a denoising autoencoder that shared weights with this
             # layer
-            dA_layer = dA(numpy_rng=numpy_rng,
-                          theano_rng=theano_rng,
-                          input=layer_input,
-                          n_visible=input_size,
-                          n_hidden=hidden_layers_sizes[i],
-                          W=sigmoid_layer.W,
-                          bhid=sigmoid_layer.b)
+            dA_layer = dA(
+                numpy_rng = numpy_rng,
+                theano_rng = theano_rng,
+                input = layer_input,
+                n_visible = input_size,
+                n_hidden = hidden_layers_sizes[i],
+                W = sigmoid_layer.weights,
+                bhid = sigmoid_layer.biases
+            )
             self.dA_layers.append(dA_layer)
 
         # We now need to add a logistic layer on top of the MLP

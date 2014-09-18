@@ -73,23 +73,27 @@ class LogisticRegression(object):
         """
 
         # initialize with 0 the weights W as a matrix of shape (n_in, n_out)
-        self.W = theano.shared(value=numpy.zeros((n_in, n_out),
-                                                 dtype=theano.config.floatX),
-                                name='W', borrow=True)
+        self.weights = theano.shared(
+            value = numpy.zeros((n_in, n_out), dtype = theano.config.floatX), 
+            name = 'weights', 
+            borrow = True
+        )
         # initialize the baises b as a vector of n_out 0s
-        self.b = theano.shared(value=numpy.zeros((n_out,),
-                                                 dtype=theano.config.floatX),
-                               name='b', borrow=True)
+        self.biases = theano.shared(
+            value = numpy.zeros((n_out,), dtype = theano.config.floatX), 
+            name = 'biases', 
+            borrow = True
+        )
 
         # compute vector of class-membership probabilities in symbolic form
-        self.p_y_given_x = Tensor.nnet.softmax(Tensor.dot(input, self.W) + self.b)
+        self.p_y_given_x = Tensor.nnet.softmax(Tensor.dot(input, self.weights) + self.biases)
 
         # compute prediction as class whose probability is maximal in
         # symbolic form
         self.y_pred = Tensor.argmax(self.p_y_given_x, axis=1)
 
         # parameters of the model
-        self.params = [self.W, self.b]
+        self.params = [self.weights, self.biases]
 
     def negative_log_likelihood(self, y):
         """Return the mean of the negative log-likelihood of the prediction
@@ -218,7 +222,7 @@ class LogisticClassifier(object):
         return [epoch_losses, best_validation_loss, best_iter, test_score]
     
         
-    def initialize(self, learning_rate=0.13):
+    def initialize(self, learning_rate = 0.13):
         """
         Demonstrate stochastic gradient descent optimization of a log-linear
         model
@@ -236,54 +240,61 @@ class LogisticClassifier(object):
 
         # allocate symbolic variables for the data
         index = Tensor.lscalar()  # index to a [mini]batch
-        x = Tensor.matrix('x')  # the data is presented as rasterized images
-        y = Tensor.ivector('y')  # the labels are presented as 1D vector of
+        inputs = Tensor.matrix('inputs')  # the data is presented as rasterized images
+        outputs = Tensor.ivector('outputs')  # the labels are presented as 1D vector of
                                # [int] labels
 
         # construct the logistic regression class
         # Each MNIST image has size 28*28
-        classifier = LogisticRegression(input=x, n_in=28 * 28, n_out=10)
+        classifier = LogisticRegression(input = inputs, n_in = 28 * 28, n_out = 10)
 
         # the cost we minimize during training is the negative log likelihood of
         # the model in symbolic format
-        cost = classifier.negative_log_likelihood(y)
+        cost = classifier.negative_log_likelihood(outputs)
 
         # compiling a Theano function that computes the mistakes that are made by
         # the model on a minibatch
-        self.test_model = theano.function(inputs=[index],
-                outputs=classifier.errors(y),
-                givens={
-                    x: self.dataset.test_set_input[index * self.batch_size: (index + 1) * self.batch_size],
-                    y: self.dataset.test_set_output[index * self.batch_size: (index + 1) * self.batch_size]})
+        self.test_model = theano.function(
+            inputs = [index],
+            outputs = classifier.errors(outputs),
+            givens = {
+                    inputs: self.dataset.test_set_input[index * self.batch_size: (index + 1) * self.batch_size],
+                    outputs: self.dataset.test_set_output[index * self.batch_size: (index + 1) * self.batch_size]
+            }
+        )
 
-        self.validate_model = theano.function(inputs=[index],
-                outputs=classifier.errors(y),
-                givens={
-                    x: self.dataset.valid_set_input[index * self.batch_size:(index + 1) * self.batch_size],
-                    y: self.dataset.valid_set_output[index * self.batch_size:(index + 1) * self.batch_size]})
+        self.validate_model = theano.function(
+            inputs = [index],
+            outputs = classifier.errors(outputs),
+            givens = {
+                inputs: self.dataset.valid_set_input[index * self.batch_size:(index + 1) * self.batch_size],
+                outputs: self.dataset.valid_set_output[index * self.batch_size:(index + 1) * self.batch_size]
+            }
+        )
 
         # compute the gradient of cost with respect to theta = (W,b)
-        g_W = Tensor.grad(cost=cost, wrt=classifier.W)
-        g_b = Tensor.grad(cost=cost, wrt=classifier.b)
+        g_W = Tensor.grad(cost = cost, wrt = classifier.weights)
+        g_b = Tensor.grad(cost = cost, wrt = classifier.biases)
 
         # specify how to update the parameters of the model as a list of
         # (variable, update expression) pairs.
-        updates = [(classifier.W, classifier.W - learning_rate * g_W),
-                   (classifier.b, classifier.b - learning_rate * g_b)]
+        updates = [
+            (classifier.weights, classifier.weights - learning_rate * g_W),
+            (classifier.biases, classifier.biases - learning_rate * g_b)
+        ]
 
         # compiling a Theano function `train_model` that returns the cost, but in
         # the same time updates the parameter of the model based on the rules
         # defined in `updates`
-        self.train_model = theano.function(inputs=[index],
-                outputs=cost,
-                updates=updates,
-                givens={
-                    x: self.dataset.train_set_input[index * self.batch_size:(index + 1) * self.batch_size],
-                    y: self.dataset.train_set_output[index * self.batch_size:(index + 1) * self.batch_size]})
-
-        ###############
-        # TRAIN MODEL #
-        ###############
+        self.train_model = theano.function(
+            inputs = [index],
+            outputs = cost,
+            updates = updates,
+            givens = {
+                inputs: self.dataset.train_set_input[index * self.batch_size:(index + 1) * self.batch_size],
+                outputs: self.dataset.train_set_output[index * self.batch_size:(index + 1) * self.batch_size]
+            }
+        )
 
 if __name__ == '__main__':
     dataset = DataSet()
