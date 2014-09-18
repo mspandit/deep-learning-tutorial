@@ -46,7 +46,7 @@ import theano.tensor as Tensor
 
 from data_set import DataSet
 
-class LogisticRegression(object):
+class LogisticClassifier(object):
     """Multi-class Logistic Regression Class
 
     The logistic regression is fully described by a weight matrix :math:`W`
@@ -163,84 +163,17 @@ class LogisticRegression(object):
         else:
             raise NotImplementedError()
 
-class LogisticClassifier(object):
+from trainer import Trainer
+
+class LogisticClassifierTrainer(Trainer):
     """docstring for LogisticClassifier"""
     def __init__(self, dataset, batch_size=600, n_epochs=1000):
         """
         :type n_epochs: int
         :param n_epochs: maximal number of epochs to run the optimizer
         """
-        super(LogisticClassifier, self).__init__()
-        self.dataset = dataset
-        self.batch_size = batch_size
-        self.n_epochs = n_epochs
-        self.n_valid_batches = self.dataset.valid_set_input.get_value(borrow=True).shape[0] / self.batch_size
-        self.n_test_batches = self.dataset.test_set_input.get_value(borrow=True).shape[0] / self.batch_size
-        
-    def mean_validation_loss(self):
-        """docstring for mean_validation_loss"""
-        return numpy.mean([self.validation_errors(batch_index) for batch_index in xrange(self.n_valid_batches)])
-        
-    def mean_test_loss(self):
-        """docstring for mean_test_loss"""
-        return numpy.mean([self.test_errors(batch_index) for batch_index in xrange(self.n_test_batches)])
-        
-    def train(self):
-        """docstring for train"""
-
-        # compute number of minibatches for training, validation and testing
-        n_train_batches = self.dataset.train_set_input.get_value(borrow=True).shape[0] / self.batch_size
-
-        best_validation_loss = numpy.inf
-        best_iter = 0
-        test_score = 0.
-
-        # early-stopping parameters
-        patience = 5000  # look as this many examples regardless
-        patience_increase = 2  # wait this much longer when a new best is
-                                      # found
-        improvement_threshold = 0.995  # a relative improvement of this much is
-                                      # considered significant
-        validation_frequency = min(n_train_batches, patience / 2)
-                                      # go through this many
-                                      # minibatche before checking the network
-                                      # on the validation set; in this case we
-                                      # check every epoch
-
-        done_looping = False
-        epoch_losses = []
-        epoch = 0
-        while (epoch < self.n_epochs) and (not done_looping):
-            epoch = epoch + 1
-            for minibatch_index in xrange(n_train_batches):
-
-                self.train_model(minibatch_index)
-                
-                # iteration number
-                iter = (epoch - 1) * n_train_batches + minibatch_index
-
-                if (iter + 1) % validation_frequency == 0:
-                    this_validation_loss = self.mean_validation_loss()
-                    epoch_losses.append([this_validation_loss, iter])
-
-                    # if we got the best validation score until now
-                    if this_validation_loss < best_validation_loss:
-                        #improve patience if loss improvement is good enough
-                        if this_validation_loss < best_validation_loss *  \
-                           improvement_threshold:
-                            patience = max(patience, iter * patience_increase)
-
-                        best_validation_loss = this_validation_loss
-                        best_iter = iter
-                        test_score = self.mean_test_loss()
-
-                if patience <= iter:
-                    done_looping = True
-                    break
-        
-        return [epoch_losses, best_validation_loss, best_iter, test_score]
+        super(LogisticClassifierTrainer, self).__init__(dataset, batch_size, n_epochs)
     
-        
     def initialize(self, learning_rate = 0.13):
         """
         Demonstrate stochastic gradient descent optimization of a log-linear
@@ -265,7 +198,7 @@ class LogisticClassifier(object):
 
         # construct the logistic regression class
         # Each MNIST image has size 28*28
-        classifier = LogisticRegression(input = inputs, n_in = 28 * 28, n_out = 10)
+        classifier = LogisticClassifier(input = inputs, n_in = 28 * 28, n_out = 10)
 
         # compiling a Theano function that computes the mistakes that are made by
         # the model on a minibatch
@@ -291,8 +224,7 @@ class LogisticClassifier(object):
         # the model in symbolic format
         # compute the gradient of cost with respect to theta = (W,b)
 
-        # compiling a Theano function `train_model` that returns the cost, but in
-        # the same time updates the parameter of the model based on the rules
+        # compiling a Theano function `train_model` that updates the parameter of the model based on the rules
         # defined in `updates`
         self.train_model = theano.function(
             inputs = [index],

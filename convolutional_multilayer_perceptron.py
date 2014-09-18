@@ -30,11 +30,11 @@ import time
 import numpy
 
 import theano
-import theano.tensor as T
+import theano.tensor as Tensor
 from theano.tensor.signal import downsample
 from theano.tensor.nnet import conv
 
-from logistic_classifier import LogisticRegression
+from logistic_classifier import LogisticClassifier
 from multilayer_perceptron import HiddenLayer
 
 
@@ -97,87 +97,23 @@ class LeNetConvPoolLayer(object):
         # reshape it to a tensor of shape (1,n_filters,1,1). Each bias will
         # thus be broadcasted across mini-batches and feature map
         # width & height
-        self.output = T.tanh(pooled_out + self.b.dimshuffle('x', 0, 'x', 'x'))
+        self.output = Tensor.tanh(pooled_out + self.b.dimshuffle('x', 0, 'x', 'x'))
 
         # store parameters of this layer
         self.params = [self.W, self.b]
 
 
 from data_set import DataSet
+from trainer import Trainer
 
-class ConvolutionalMultilayerPerceptron(object):
-    """docstring for ConvolutionalMultilayerPerceptron"""
+class ConvolutionalMultilayerPerceptronTrainer(Trainer):
+    """docstring for ConvolutionalMultilayerPerceptronTrainer"""
     def __init__(self, dataset, n_epochs = 200, batch_size = 500):
-        super(ConvolutionalMultilayerPerceptron, self).__init__()
-        self.dataset = dataset
-        self.n_epochs = n_epochs
-        self.batch_size = batch_size
-    
-    def evaluate(self):
-        """docstring for evaluate"""
-        
-        patience = 10000  # look as this many examples regardless
-        patience_increase = 2  # wait this much longer when a new best is
-                               # found
-        improvement_threshold = 0.995  # a relative improvement of this much is
-                                       # considered significant
-
-        best_params = None
-        best_validation_loss = numpy.inf
-        best_iter = 0
-        test_score = 0.
-        n_train_batches = self.dataset.train_set_input.get_value(borrow=True).shape[0] / self.batch_size
-        n_valid_batches = self.dataset.valid_set_input.get_value(borrow=True).shape[0] / self.batch_size
-        n_test_batches = self.dataset.test_set_input.get_value(borrow=True).shape[0] / self.batch_size
-        validation_frequency = min(n_train_batches, patience / 2)
-                                      # go through this many
-                                      # minibatche before checking the network
-                                      # on the validation set; in this case we
-                                      # check every epoch
-        epoch = 0
-        epoch_losses = []
-        done_looping = False
-
-        while (epoch < self.n_epochs) and (not done_looping):
-            epoch = epoch + 1
-            for minibatch_index in xrange(n_train_batches):
-
-                iter = (epoch - 1) * n_train_batches + minibatch_index
-
-                cost_ij = self.train_model(minibatch_index)
-
-                if (iter + 1) % validation_frequency == 0:
-
-                    # compute zero-one loss on validation set
-                    validation_losses = [self.validate_model(i) for i
-                                         in xrange(n_valid_batches)]
-                    this_validation_loss = numpy.mean(validation_losses)
-
-                    epoch_losses.append([this_validation_loss, iter])
-
-                    # if we got the best validation score until now
-                    if this_validation_loss < best_validation_loss:
-
-                        #improve patience if loss improvement is good enough
-                        if this_validation_loss < best_validation_loss *  \
-                           improvement_threshold:
-                            patience = max(patience, iter * patience_increase)
-
-                        # save best validation score and iteration number
-                        best_validation_loss = this_validation_loss
-                        best_iter = iter
-
-                        # test it on the test set
-                        test_losses = [self.test_model(i) for i in xrange(n_test_batches)]
-                        test_score = numpy.mean(test_losses)
-
-                if patience <= iter:
-                    done_looping = True
-                    break
-                    
-        return [epoch_losses, test_score]
-
-    
+        """
+        :type n_epochs: int
+        :param n_epochs: maximal number of epochs to run the optimizer
+        """
+        super(ConvolutionalMultilayerPerceptronTrainer, self).__init__(dataset, batch_size, n_epochs)
         
     def initialize(self, learning_rate=0.1, nkerns=[20, 50]):
         """ Demonstrates lenet on MNIST dataset
@@ -195,9 +131,9 @@ class ConvolutionalMultilayerPerceptron(object):
         rng = numpy.random.RandomState(23455)
 
         # allocate symbolic variables for the data
-        index = T.lscalar()  # index to a [mini]batch
-        x = T.matrix('x')   # the data is presented as rasterized images
-        y = T.ivector('y')  # the labels are presented as 1D vector of
+        index = Tensor.lscalar()  # index to a [mini]batch
+        x = Tensor.matrix('x')   # the data is presented as rasterized images
+        y = Tensor.ivector('y')  # the labels are presented as 1D vector of
                             # [int] labels
 
         ishape = (28, 28)  # this is the size of MNIST images
@@ -214,17 +150,25 @@ class ConvolutionalMultilayerPerceptron(object):
         # filtering reduces the image size to (28-5+1,28-5+1)=(24,24)
         # maxpooling reduces this further to (24/2,24/2) = (12,12)
         # 4D output tensor is thus of shape (self.batch_size,nkerns[0],12,12)
-        layer0 = LeNetConvPoolLayer(rng, input=layer0_input,
-                image_shape=(self.batch_size, 1, 28, 28),
-                filter_shape=(nkerns[0], 1, 5, 5), poolsize=(2, 2))
+        layer0 = LeNetConvPoolLayer(
+            rng, 
+            input = layer0_input,
+            image_shape = (self.batch_size, 1, 28, 28),
+            filter_shape = (nkerns[0], 1, 5, 5), 
+            poolsize = (2, 2)
+        )
 
         # Construct the second convolutional pooling layer
         # filtering reduces the image size to (12-5+1,12-5+1)=(8,8)
         # maxpooling reduces this further to (8/2,8/2) = (4,4)
         # 4D output tensor is thus of shape (nkerns[0],nkerns[1],4,4)
-        layer1 = LeNetConvPoolLayer(rng, input=layer0.output,
-                image_shape=(self.batch_size, nkerns[0], 12, 12),
-                filter_shape=(nkerns[1], nkerns[0], 5, 5), poolsize=(2, 2))
+        layer1 = LeNetConvPoolLayer(
+            rng, 
+            input = layer0.output,
+            image_shape = (self.batch_size, nkerns[0], 12, 12),
+            filter_shape = (nkerns[1], nkerns[0], 5, 5), 
+            poolsize=(2, 2)
+        )
 
         # the HiddenLayer being fully-connected, it operates on 2D matrices of
         # shape (self.batch_size,num_pixels) (i.e matrix of rasterized images).
@@ -232,47 +176,57 @@ class ConvolutionalMultilayerPerceptron(object):
         layer2_input = layer1.output.flatten(2)
 
         # construct a fully-connected sigmoidal layer
-        layer2 = HiddenLayer(rng, input=layer2_input, n_in=nkerns[1] * 4 * 4,
-                             n_out=500, activation=T.tanh)
+        layer2 = HiddenLayer(
+            rng, 
+            input = layer2_input, 
+            n_in = nkerns[1] * 4 * 4,
+            n_out = 500, 
+            activation=Tensor.tanh
+        )
 
         # classify the values of the fully-connected sigmoidal layer
-        layer3 = LogisticRegression(input=layer2.output, n_in=500, n_out=10)
+        layer3 = LogisticClassifier(input = layer2.output, n_in = 500, n_out = 10)
 
         # the cost we minimize during training is the NLL of the model
         cost = layer3.negative_log_likelihood(y)
 
         # create a function to compute the mistakes that are made by the model
-        self.test_model = theano.function([index], layer3.errors(y),
-                 givens={
-                    x: self.dataset.test_set_input[index * self.batch_size: (index + 1) * self.batch_size],
-                    y: self.dataset.test_set_output[index * self.batch_size: (index + 1) * self.batch_size]})
+        self.test_errors = theano.function(
+            inputs = [index], 
+            outputs = layer3.errors(y),
+            givens = {
+                x: self.dataset.test_set_input[index * self.batch_size: (index + 1) * self.batch_size],
+                y: self.dataset.test_set_output[index * self.batch_size: (index + 1) * self.batch_size]
+            }
+        )
 
-        self.validate_model = theano.function([index], layer3.errors(y),
-                givens={
-                    x: self.dataset.valid_set_input[index * self.batch_size: (index + 1) * self.batch_size],
-                    y: self.dataset.valid_set_output[index * self.batch_size: (index + 1) * self.batch_size]})
+        self.validation_errors = theano.function(
+            inputs = [index], 
+            outputs = layer3.errors(y),
+            givens = {
+                x: self.dataset.valid_set_input[index * self.batch_size: (index + 1) * self.batch_size],
+                y: self.dataset.valid_set_output[index * self.batch_size: (index + 1) * self.batch_size]
+            }
+        )
 
         # create a list of all model parameters to be fit by gradient descent
         params = layer3.params + layer2.params + layer1.params + layer0.params
-
-        # create a list of gradients for all model parameters
-        grads = T.grad(cost, params)
 
         # train_model is a function that updates the model parameters by
         # SGD Since this model has many parameters, it would be tedious to
         # manually create an update rule for each model parameter. We thus
         # create the updates list by automatically looping over all
         # (params[i],grads[i]) pairs.
-        updates = []
-        for param_i, grad_i in zip(params, grads):
-            updates.append((param_i, param_i - learning_rate * grad_i))
+        updates = [(param_i, param_i - learning_rate * grad_i) for param_i, grad_i in zip(params, Tensor.grad(cost, params))]
 
-        self.train_model = theano.function([index], cost, updates=updates,
-              givens={
+        self.train_model = theano.function(
+            inputs = [index], 
+            updates = updates,
+            givens = {
                 x: self.dataset.train_set_input[index * self.batch_size: (index + 1) * self.batch_size],
-                y: self.dataset.train_set_output[index * self.batch_size: (index + 1) * self.batch_size]})
-
-
+                y: self.dataset.train_set_output[index * self.batch_size: (index + 1) * self.batch_size]
+            }
+        )
 
 if __name__ == '__main__':
     dataset = DataSet()
@@ -280,7 +234,7 @@ if __name__ == '__main__':
     lenet5 = ConvolutionalMultilayerPerceptron(dataset)
     lenet5.initialize()
     start_time = time.clock()
-    epoch_losses, test_score = lenet5.evaluate()
+    epoch_losses, best_validation_loss, best_iter, test_score = lenet5.train()
     end_time = time.clock()
     print >> sys.stderr, ('The code for file ' +
                           os.path.split(__file__)[1] +

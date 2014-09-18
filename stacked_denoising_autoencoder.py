@@ -41,7 +41,7 @@ import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
-from logistic_classifier import LogisticRegression
+from logistic_classifier import LogisticClassifier
 from multilayer_perceptron import HiddenLayer
 from denoising_autoencoder import dA
 
@@ -155,7 +155,7 @@ class SdA(object):
             self.dA_layers.append(dA_layer)
 
         # We now need to add a logistic layer on top of the MLP
-        self.logLayer = LogisticRegression(
+        self.logLayer = LogisticClassifier(
                          input=self.sigmoid_layers[-1].output,
                          n_in=hidden_layers_sizes[-1], n_out=n_outs)
 

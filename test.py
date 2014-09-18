@@ -1,8 +1,8 @@
 import unittest
 
-from logistic_classifier import LogisticClassifier
-from multilayer_perceptron import MultilayerPerceptron
-from convolutional_multilayer_perceptron import ConvolutionalMultilayerPerceptron
+from logistic_classifier import LogisticClassifierTrainer
+from multilayer_perceptron import MultilayerPerceptronTrainer
+from convolutional_multilayer_perceptron import ConvolutionalMultilayerPerceptronTrainer
 from denoising_autoencoder import DenoisingAutoencoder
 from stacked_denoising_autoencoder import StackedDenoisingAutoencoder
 from restricted_boltzmann_machine import RestrictedBoltzmannMachine
@@ -17,9 +17,9 @@ class TestTutorials(unittest.TestCase):
         self.dataset.load(100)
 
     def test_convolutional_multilayer_perceptron(self):
-        lenet5 = ConvolutionalMultilayerPerceptron(self.dataset, n_epochs = 1, batch_size = 2)
+        lenet5 = ConvolutionalMultilayerPerceptronTrainer(self.dataset, n_epochs = 1, batch_size = 2)
         lenet5.initialize(nkerns = [2, 5])
-        epoch_losses, test_score = lenet5.evaluate()
+        epoch_losses, best_validation_loss, best_iter, test_score = lenet5.train(patience = 10000, patience_increase = 2, improvement_threshold = 0.995)
         self.assertEqual(epoch_losses, [[0.52000000000000002, 49]])
         self.assertEqual(test_score, 0.45000000000000001)
         
@@ -41,17 +41,17 @@ class TestTutorials(unittest.TestCase):
         self.assertEqual(uncorrupt_costs, [149.16503228187111])
         self.assertEqual(corrupt_costs, [173.66499408829787])
         
-    def test_logistic_stochastic_gradient_descent(self):
-        lc = LogisticClassifier(self.dataset, batch_size = 2, n_epochs = 1)
+    def test_logistic_classifier(self):
+        lc = LogisticClassifierTrainer(self.dataset, batch_size = 2, n_epochs = 1)
         lc.initialize()
-        epoch_losses, best_validation_loss, best_iter, test_score = lc.train()
+        epoch_losses, best_validation_loss, best_iter, test_score = lc.train(patience = 5000, patience_increase = 2, improvement_threshold = 0.995)
         self.assertEqual(epoch_losses, [[0.40000000000000002, 49]])
         self.assertEqual(test_score, 0.30)
 
     def test_multilayer_perceptron(self):
-        mp = MultilayerPerceptron(self.dataset, n_epochs = 1, batch_size = 2)
+        mp = MultilayerPerceptronTrainer(self.dataset, n_epochs = 1, batch_size = 2)
         mp.initialize()
-        epoch_losses, test_score = mp.train()
+        epoch_losses, best_validation_loss, best_iter, test_score = mp.train(patience = 10000, patience_increase = 2, improvement_threshold = 0.995)
         self.assertEqual(epoch_losses, [[0.54, 49]])
         self.assertEqual(test_score, 0.52)
         
