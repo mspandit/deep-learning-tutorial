@@ -283,10 +283,10 @@ from data_set import DataSet
 if __name__ == '__main__':
     dataset = DataSet()
     dataset.load()
-    mlp = MultilayerPerceptron(dataset)
+    mlp = MultilayerPerceptronTrainer(dataset)
     mlp.initialize()
     start_time = time.clock()
-    epoch_losses, best_validation_loss, best_iter, test_score = self.train()
+    epoch_losses, best_validation_loss, best_iter, test_score = mlp.train(patience = 10000, patience_increase = 2, improvement_threshold = 0.995)
     end_time = time.clock()
     print >> sys.stderr, ('The code for file ' +
                           os.path.split(__file__)[1] +
