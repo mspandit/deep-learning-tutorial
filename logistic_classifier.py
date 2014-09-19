@@ -167,7 +167,7 @@ from trainer import Trainer
 
 class LogisticClassifierTrainer(Trainer):
     """docstring for LogisticClassifier"""
-    def __init__(self, dataset, batch_size=600, n_epochs=1000):
+    def __init__(self, dataset, batch_size = 600, n_epochs = 1000):
         """
         :type n_epochs: int
         :param n_epochs: maximal number of epochs to run the optimizer
@@ -238,15 +238,16 @@ class LogisticClassifierTrainer(Trainer):
 if __name__ == '__main__':
     dataset = DataSet()
     dataset.load()
-    classifier = LogisticClassifier(dataset)
-    classifier.initialize()
+    trainer = LogisticClassifierTrainer(dataset)
+    trainer.initialize()
 
     start_time = time.clock()
-    epoch_losses, best_validation_loss, best_iter, test_score = classifier.train()
+    epoch_losses, best_validation_loss, best_iter, test_score = trainer.train()
     end_time = time.clock()
-    print >> sys.stderr, ('The code for file ' +
-                          os.path.split(__file__)[1] +
-                          ' ran for %.1fs' % ((end_time - start_time)))
+    for epoch_index in xrange(len(epoch_losses)):
+        print 'epoch %d, validation error %f%%' % (epoch_index, epoch_losses[epoch_index][0] * 100.0)
+        
+    print >> sys.stderr, ('The code for file ' + os.path.split(__file__)[1] + ' ran for %.1fs' % ((end_time - start_time)))
     print(('Optimization complete with best validation score of %f %%,'
            'with test performance %f %%') %
                  (best_validation_loss * 100.0, test_score * 100.))

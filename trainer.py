@@ -17,10 +17,6 @@ class Trainer(object):
         best_iter = 0
         test_score = 0.
         validation_frequency = min(n_train_batches, patience / 2)
-                                      # go through this many
-                                      # minibatche before checking the network
-                                      # on the validation set; in this case we
-                                      # check every epoch
         epoch = 0
         epoch_losses = []
         done_looping = False
