@@ -231,17 +231,11 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
 if __name__ == '__main__':
     dataset = DataSet()
     dataset.load()
-    lenet5 = ConvolutionalMultilayerPerceptron(dataset)
+    lenet5 = ConvolutionalMultilayerPerceptronTrainer(dataset)
     lenet5.initialize()
     start_time = time.clock()
     epoch_losses, best_validation_loss, best_iter, test_score = lenet5.train()
     end_time = time.clock()
-    print >> sys.stderr, ('The code for file ' +
-                          os.path.split(__file__)[1] +
-                          ' ran for %.2fm' % ((end_time - start_time) / 60.))
-    print('Best validation score of %f %% obtained at iteration %i,'\
-          'with test performance %f %%' %
+    print >> sys.stderr, ('The code for file ' + os.path.split(__file__)[1] + ' ran for %.2fm' % ((end_time - start_time) / 60.))
+    print('Best validation score of %f %% obtained at iteration %i, with test performance %f %%' %
           (best_validation_loss * 100., best_iter + 1, test_score * 100.))
-
-def experiment(state, channel):
-    evaluate_lenet5(state.learning_rate, dataset=state.dataset)
