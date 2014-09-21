@@ -262,7 +262,7 @@ class DenoisingAutoencoder(object):
             c = []
             for batch_index in xrange(self.n_train_batches):
                 c.append(self.train_da(batch_index))
-
+            # print 'Training epoch %d, cost %f' % (epoch, numpy.mean(c))
             costs.append(numpy.mean(c))
         
         return costs
