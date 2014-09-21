@@ -345,6 +345,7 @@ class StackedDenoisingAutoencoder(Trainer):
                     c.append(self.pretraining_fns[i](index=batch_index,
                              corruption=corruption_levels[i],
                              lr=self.pretrain_lr))
+                # print 'Pretraining layer %d, epoch %d, cost %f' % (i, epoch, numpy.mean(c))
                 epoch_costs.append(numpy.mean(c))
             layer_epoch_costs.append(epoch_costs)
         return layer_epoch_costs
