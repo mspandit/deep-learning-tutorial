@@ -300,6 +300,7 @@ class DeepBeliefNetwork(object):
                     c.append(self.pretraining_fns[i](index=batch_index,
                                                 lr=self.pretrain_lr))
                 epoch_costs.append(numpy.mean(c))
+                # print 'Pre-training layer %d, epoch %d, cost %f' % (i, epoch, numpy.mean(c))
             layer_epoch_costs.append(epoch_costs)
     
         return layer_epoch_costs
