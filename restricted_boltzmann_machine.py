@@ -333,7 +333,7 @@ class RestrictedBoltzmannMachine(object):
                 mean_cost += [self.train_rbm(batch_index)]
 
             epoch_costs.append(numpy.mean(mean_cost))
-            print 'Training epoch %d, cost is %f' % (epoch, numpy.mean(mean_cost))
+            # print 'Training epoch %d, cost is %f' % (epoch, numpy.mean(mean_cost))
         
             # Plot filters after each training epoch
             plotting_start = time.clock()
