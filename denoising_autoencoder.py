@@ -42,7 +42,6 @@ import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
-from logistic_sgd import load_data
 from utils import tile_raster_images
 
 import Image
@@ -169,6 +168,7 @@ class dA(object):
             self.x = input
 
         self.params = [self.W, self.b, self.b_prime]
+        self.cost_fn = None
 
     def get_corrupted_input(self, input, corruption_level):
         """This function keeps ``1-corruption_level`` entries of the inputs the
@@ -207,159 +207,116 @@ class dA(object):
         """
         return  T.nnet.sigmoid(T.dot(hidden, self.W_prime) + self.b_prime)
 
-    def get_cost_updates(self, corruption_level, learning_rate):
-        """ This function computes the cost and the updates for one trainng
-        step of the dA """
+    def cost(self, corruption_level):
+        """docstring for cost"""
+        if self.cost_fn == None:
+            tilde_x = self.get_corrupted_input(self.x, corruption_level)
+            y = self.get_hidden_values(tilde_x)
+            z = self.get_reconstructed_input(y)
+            # note : we sum over the size of a datapoint; if we are using
+            #        minibatches, L will be a vector, with one entry per
+            #        example in minibatch
+            L = - T.sum(self.x * T.log(z) + (1 - self.x) * T.log(1 - z), axis=1)
+            # note : L is now a vector, where each element is the
+            #        cross-entropy cost of the reconstruction of the
+            #        corresponding example of the minibatch. We need to
+            #        compute the average of all these to get the cost of
+            #        the minibatch
+            self.cost_fn = T.mean(L)
+        return self.cost_fn
+    
+    def updates(self, learning_rate, corruption_level):
+        """docstring for updates"""
+        return [(param, param - learning_rate * gparam) for param, gparam in zip(self.params, T.grad(self.cost(corruption_level), self.params))]
 
-        tilde_x = self.get_corrupted_input(self.x, corruption_level)
-        y = self.get_hidden_values(tilde_x)
-        z = self.get_reconstructed_input(y)
-        # note : we sum over the size of a datapoint; if we are using
-        #        minibatches, L will be a vector, with one entry per
-        #        example in minibatch
-        L = - T.sum(self.x * T.log(z) + (1 - self.x) * T.log(1 - z), axis=1)
-        # note : L is now a vector, where each element is the
-        #        cross-entropy cost of the reconstruction of the
-        #        corresponding example of the minibatch. We need to
-        #        compute the average of all these to get the cost of
-        #        the minibatch
-        cost = T.mean(L)
+from data_set import DataSet
 
-        # compute the gradients of the cost of the `dA` with respect
-        # to its parameters
-        gparams = T.grad(cost, self.params)
-        # generate the list of updates
-        updates = []
-        for param, gparam in zip(self.params, gparams):
-            updates.append((param, param - learning_rate * gparam))
+class DenoisingAutoencoder(object):
+    """docstring for DenoisingAutoencoder"""
+    def __init__(self, dataset, training_epochs=15, learning_rate=0.1,
+                batch_size=20):
+        """
+        :type training_epochs: int
+        :param training_epochs: number of epochs used for training
 
-        return (cost, updates)
+        :type learning_rate: float
+        :param learning_rate: learning rate used for training the DeNosing
+                              AutoEncoder
+        """
+        super(DenoisingAutoencoder, self).__init__()
+        self.dataset = dataset
+        self.training_epochs = training_epochs
+        self.learning_rate = learning_rate
+        self.batch_size = batch_size
+        
+    def train(self):
+        """docstring for train"""
+        ############
+        # TRAINING #
+        ############
 
+        # go through training epochs
+        costs = []
+        for epoch in xrange(self.training_epochs):
+            # go through trainng set
+            c = []
+            for batch_index in xrange(self.n_train_batches):
+                c.append(self.train_da(batch_index))
+            # print 'Training epoch %d, cost %f' % (epoch, numpy.mean(c))
+            costs.append(numpy.mean(c))
+        
+        return costs
+        
+    def build_model(self, x, corruption_level = 0.0):
+        """docstring for build_model_0"""
+        rng = numpy.random.RandomState(123)
+        theano_rng = RandomStreams(rng.randint(2 ** 30))
 
-def test_dA(learning_rate=0.1, training_epochs=15,
-            dataset='mnist.pkl.gz',
-            batch_size=20, output_folder='dA_plots'):
+        da = dA(numpy_rng = rng, theano_rng = theano_rng, input = x, n_visible = 28 * 28, n_hidden = 500)
 
-    """
-    This demo is tested on MNIST
+        cost = da.cost(corruption_level = corruption_level)
+        updates = da.updates(corruption_level = corruption_level, learning_rate = self.learning_rate)
 
-    :type learning_rate: float
-    :param learning_rate: learning rate used for training the DeNosing
-                          AutoEncoder
+        self.train_da = theano.function(
+            inputs = [self.index], 
+            outputs = cost, 
+            updates = updates,
+            givens = {
+                x: self.dataset.train_set_input[self.index * self.batch_size : (self.index + 1) * self.batch_size]
+            }
+        )
+        
+        costs = self.train()
+        image = Image.fromarray(tile_raster_images(X=da.W.get_value(borrow=True).T, img_shape=(28, 28), tile_shape=(10, 10), tile_spacing=(1, 1)))
+        image.save('filters_corruption_0.png')
+        
+        return costs
 
-    :type training_epochs: int
-    :param training_epochs: number of epochs used for training
+    def evaluate(self, output_folder='dA_plots'):
+        """
+        This demo is tested on MNIST
+        """
+        
+        # compute number of minibatches for training, validation and testing
+        self.n_train_batches = self.dataset.train_set_input.get_value(borrow=True).shape[0] / self.batch_size
 
-    :type dataset: string
-    :param dataset: path to the picked dataset
+        # allocate symbolic variables for the data
+        self.index = T.lscalar()    # index to a [mini]batch
+        x = T.matrix('x')  # the data is presented as rasterized images
 
-    """
-    datasets = load_data(dataset)
-    train_set_x, train_set_y = datasets[0]
+        if not os.path.isdir(output_folder):
+            os.makedirs(output_folder)
+        os.chdir(output_folder)
+        
+        uncorrupt_costs = self.build_model(x)
+        corrupt_costs = self.build_model(x, corruption_level = 0.3)
 
-    # compute number of minibatches for training, validation and testing
-    n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
-
-    # allocate symbolic variables for the data
-    index = T.lscalar()    # index to a [mini]batch
-    x = T.matrix('x')  # the data is presented as rasterized images
-
-    if not os.path.isdir(output_folder):
-        os.makedirs(output_folder)
-    os.chdir(output_folder)
-    ####################################
-    # BUILDING THE MODEL NO CORRUPTION #
-    ####################################
-
-    rng = numpy.random.RandomState(123)
-    theano_rng = RandomStreams(rng.randint(2 ** 30))
-
-    da = dA(numpy_rng=rng, theano_rng=theano_rng, input=x,
-            n_visible=28 * 28, n_hidden=500)
-
-    cost, updates = da.get_cost_updates(corruption_level=0.,
-                                        learning_rate=learning_rate)
-
-    train_da = theano.function([index], cost, updates=updates,
-         givens={x: train_set_x[index * batch_size:
-                                (index + 1) * batch_size]})
-
-    start_time = time.clock()
-
-    ############
-    # TRAINING #
-    ############
-
-    # go through training epochs
-    for epoch in xrange(training_epochs):
-        # go through trainng set
-        c = []
-        for batch_index in xrange(n_train_batches):
-            c.append(train_da(batch_index))
-
-        print 'Training epoch %d, cost ' % epoch, numpy.mean(c)
-
-    end_time = time.clock()
-
-    training_time = (end_time - start_time)
-
-    print >> sys.stderr, ('The no corruption code for file ' +
-                          os.path.split(__file__)[1] +
-                          ' ran for %.2fm' % ((training_time) / 60.))
-    image = Image.fromarray(
-        tile_raster_images(X=da.W.get_value(borrow=True).T,
-                           img_shape=(28, 28), tile_shape=(10, 10),
-                           tile_spacing=(1, 1)))
-    image.save('filters_corruption_0.png')
-
-    #####################################
-    # BUILDING THE MODEL CORRUPTION 30% #
-    #####################################
-
-    rng = numpy.random.RandomState(123)
-    theano_rng = RandomStreams(rng.randint(2 ** 30))
-
-    da = dA(numpy_rng=rng, theano_rng=theano_rng, input=x,
-            n_visible=28 * 28, n_hidden=500)
-
-    cost, updates = da.get_cost_updates(corruption_level=0.3,
-                                        learning_rate=learning_rate)
-
-    train_da = theano.function([index], cost, updates=updates,
-         givens={x: train_set_x[index * batch_size:
-                                  (index + 1) * batch_size]})
-
-    start_time = time.clock()
-
-    ############
-    # TRAINING #
-    ############
-
-    # go through training epochs
-    for epoch in xrange(training_epochs):
-        # go through trainng set
-        c = []
-        for batch_index in xrange(n_train_batches):
-            c.append(train_da(batch_index))
-
-        print 'Training epoch %d, cost ' % epoch, numpy.mean(c)
-
-    end_time = time.clock()
-
-    training_time = (end_time - start_time)
-
-    print >> sys.stderr, ('The 30% corruption code for file ' +
-                          os.path.split(__file__)[1] +
-                          ' ran for %.2fm' % (training_time / 60.))
-
-    image = Image.fromarray(tile_raster_images(
-        X=da.W.get_value(borrow=True).T,
-        img_shape=(28, 28), tile_shape=(10, 10),
-        tile_spacing=(1, 1)))
-    image.save('filters_corruption_30.png')
-
-    os.chdir('../')
-
+        os.chdir('../')
+        
+        return [uncorrupt_costs, corrupt_costs]
 
 if __name__ == '__main__':
-    test_dA()
+    dataset = DataSet()
+    dataset.load()
+    da = DenoisingAutoencoder(dataset)
+    uncorrupt_costs, corrupt_costs = da.evaluate()

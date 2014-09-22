@@ -41,9 +41,9 @@ import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
-from logistic_sgd import LogisticRegression, load_data
-from mlp import HiddenLayer
-from dA import dA
+from logistic_classifier import LogisticClassifier
+from multilayer_perceptron import HiddenLayer
+from denoising_autoencoder import dA
 
 
 class SdA(object):
@@ -143,17 +143,19 @@ class SdA(object):
 
             # Construct a denoising autoencoder that shared weights with this
             # layer
-            dA_layer = dA(numpy_rng=numpy_rng,
-                          theano_rng=theano_rng,
-                          input=layer_input,
-                          n_visible=input_size,
-                          n_hidden=hidden_layers_sizes[i],
-                          W=sigmoid_layer.W,
-                          bhid=sigmoid_layer.b)
+            dA_layer = dA(
+                numpy_rng = numpy_rng,
+                theano_rng = theano_rng,
+                input = layer_input,
+                n_visible = input_size,
+                n_hidden = hidden_layers_sizes[i],
+                W = sigmoid_layer.weights,
+                bhid = sigmoid_layer.biases
+            )
             self.dA_layers.append(dA_layer)
 
         # We now need to add a logistic layer on top of the MLP
-        self.logLayer = LogisticRegression(
+        self.logLayer = LogisticClassifier(
                          input=self.sigmoid_layers[-1].output,
                          n_in=hidden_layers_sizes[-1], n_out=n_outs)
 
@@ -168,15 +170,15 @@ class SdA(object):
         # minibatch given by self.x and self.y
         self.errors = self.logLayer.errors(self.y)
 
-    def pretraining_functions(self, train_set_x, batch_size):
+    def pretraining_functions(self, train_set_input, batch_size):
         ''' Generates a list of functions, each of them implementing one
         step in trainnig the dA corresponding to the layer with same index.
         The function will require as input the minibatch index, and to train
         a dA you just need to iterate, calling the corresponding function on
         all minibatch indexes.
 
-        :type train_set_x: theano.tensor.TensorType
-        :param train_set_x: Shared variable that contains all datapoints used
+        :type train_set_input: theano.tensor.TensorType
+        :param train_set_input: Shared variable that contains all datapoints used
                             for training the dA
 
         :type batch_size: int
@@ -192,31 +194,36 @@ class SdA(object):
         corruption_level = T.scalar('corruption')  # % of corruption to use
         learning_rate = T.scalar('lr')  # learning rate to use
         # number of batches
-        n_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
+        n_batches = train_set_input.get_value(borrow=True).shape[0] / batch_size
         # begining of a batch, given `index`
         batch_begin = index * batch_size
         # ending of a batch given `index`
         batch_end = batch_begin + batch_size
 
-        pretrain_fns = []
+        pretrain_models = []
         for dA in self.dA_layers:
             # get the cost and the updates list
-            cost, updates = dA.get_cost_updates(corruption_level,
-                                                learning_rate)
+            cost = dA.cost(corruption_level)
+            updates = dA.updates(learning_rate, corruption_level)
             # compile the theano function
-            fn = theano.function(inputs=[index,
-                              theano.Param(corruption_level, default=0.2),
-                              theano.Param(learning_rate, default=0.1)],
-                                 outputs=cost,
-                                 updates=updates,
-                                 givens={self.x: train_set_x[batch_begin:
-                                                             batch_end]})
+            fn = theano.function(
+                inputs = [
+                    index,
+                    theano.Param(corruption_level, default=0.2),
+                    theano.Param(learning_rate, default=0.1)
+                ],
+                outputs = cost,
+                updates = updates,
+                givens = {
+                    self.x: train_set_input[batch_begin : batch_end]
+                }
+            )
             # append `fn` to the list of functions
-            pretrain_fns.append(fn)
+            pretrain_models.append(fn)
 
-        return pretrain_fns
+        return pretrain_models
 
-    def build_finetune_functions(self, datasets, batch_size, learning_rate):
+    def build_finetune_functions(self, dataset, batch_size, learning_rate):
         '''Generates a function `train` that implements one step of
         finetuning, a function `validate` that computes the error on
         a batch from the validation set, and a function `test` that
@@ -236,14 +243,10 @@ class SdA(object):
         :param learning_rate: learning rate used during finetune stage
         '''
 
-        (train_set_x, train_set_y) = datasets[0]
-        (valid_set_x, valid_set_y) = datasets[1]
-        (test_set_x, test_set_y) = datasets[2]
-
         # compute number of minibatches for training, validation and testing
-        n_valid_batches = valid_set_x.get_value(borrow=True).shape[0]
+        n_valid_batches = dataset.valid_set_input.get_value(borrow=True).shape[0]
         n_valid_batches /= batch_size
-        n_test_batches = test_set_x.get_value(borrow=True).shape[0]
+        n_test_batches = dataset.test_set_input.get_value(borrow=True).shape[0]
         n_test_batches /= batch_size
 
         index = T.lscalar('index')  # index to a [mini]batch
@@ -256,29 +259,29 @@ class SdA(object):
         for param, gparam in zip(self.params, gparams):
             updates.append((param, param - gparam * learning_rate))
 
-        train_fn = theano.function(inputs=[index],
+        train_model = theano.function(inputs=[index],
               outputs=self.finetune_cost,
               updates=updates,
               givens={
-                self.x: train_set_x[index * batch_size:
+                self.x: dataset.train_set_input[index * batch_size:
                                     (index + 1) * batch_size],
-                self.y: train_set_y[index * batch_size:
+                self.y: dataset.train_set_output[index * batch_size:
                                     (index + 1) * batch_size]},
               name='train')
 
         test_score_i = theano.function([index], self.errors,
                  givens={
-                   self.x: test_set_x[index * batch_size:
+                   self.x: dataset.test_set_input[index * batch_size:
                                       (index + 1) * batch_size],
-                   self.y: test_set_y[index * batch_size:
+                   self.y: dataset.test_set_output[index * batch_size:
                                       (index + 1) * batch_size]},
                       name='test')
 
         valid_score_i = theano.function([index], self.errors,
               givens={
-                 self.x: valid_set_x[index * batch_size:
+                 self.x: dataset.valid_set_input[index * batch_size:
                                      (index + 1) * batch_size],
-                 self.y: valid_set_y[index * batch_size:
+                 self.y: dataset.valid_set_output[index * batch_size:
                                      (index + 1) * batch_size]},
                       name='valid')
 
@@ -290,158 +293,121 @@ class SdA(object):
         def test_score():
             return [test_score_i(i) for i in xrange(n_test_batches)]
 
-        return train_fn, valid_score, test_score
+        return train_model, valid_score, test_score
 
 
-def test_SdA(finetune_lr=0.1, pretraining_epochs=15,
-             pretrain_lr=0.001, training_epochs=1000,
-             dataset='mnist.pkl.gz', batch_size=1):
-    """
-    Demonstrates how to train and test a stochastic denoising autoencoder.
+from data_set import DataSet
+from trainer import Trainer
 
-    This is demonstrated on MNIST.
+class StackedDenoisingAutoencoder(Trainer):
+    """docstring for StackedDenoisingAutoencoder"""
+    def __init__(self, dataset, pretraining_epochs = 15, n_epochs = 1000, batch_size = 1, pretrain_lr = 0.001):
+        """
+        :type pretraining_epochs: int
+        :param pretraining_epochs: number of epoch to do pretraining
+        """
+        super(StackedDenoisingAutoencoder, self).__init__(dataset, batch_size, n_epochs)
+        self.pretraining_epochs = pretraining_epochs
+        self.pretrain_lr = pretrain_lr
 
-    :type learning_rate: float
-    :param learning_rate: learning rate used in the finetune stage
-    (factor for the stochastic gradient)
+    def preinitialize(self):
+        """docstring for preinitialize"""
+        # compute number of minibatches for training, validation and testing
+        self.n_train_batches = self.dataset.train_set_input.get_value(borrow=True).shape[0] / self.batch_size
 
-    :type pretraining_epochs: int
-    :param pretraining_epochs: number of epoch to do pretraining
+        # numpy random generator
+        self.numpy_rng = numpy.random.RandomState(89677)
 
-    :type pretrain_lr: float
-    :param pretrain_lr: learning rate to be used during pre-training
+        # construct the stacked denoising autoencoder class
+        self.sda = SdA(numpy_rng=self.numpy_rng, n_ins=28 * 28,
+                  hidden_layers_sizes=[1000, 1000, 1000],
+                  n_outs=10)
 
-    :type n_iter: int
-    :param n_iter: maximal number of iterations ot run the optimizer
+        #########################
+        # PRETRAINING THE MODEL #
+        #########################
+        self.pretraining_fns = self.sda.pretraining_functions(train_set_input=self.dataset.train_set_input,
+                                                    batch_size=self.batch_size)
+    
+    def pretrain(self):
+        """docstring for pretrain"""
+    
+        ## Pre-train layer-wise
+        corruption_levels = [.1, .2, .3]
+        layer_epoch_costs = []
+        for i in xrange(self.sda.n_layers):
+            # go through pretraining epochs
+            epoch_costs = []
+            for epoch in xrange(self.pretraining_epochs):
+                # go through the training set
+                c = []
+                for batch_index in xrange(self.n_train_batches):
+                    c.append(self.pretraining_fns[i](index=batch_index,
+                             corruption=corruption_levels[i],
+                             lr=self.pretrain_lr))
+                # print 'Pretraining layer %d, epoch %d, cost %f' % (i, epoch, numpy.mean(c))
+                epoch_costs.append(numpy.mean(c))
+            layer_epoch_costs.append(epoch_costs)
+        return layer_epoch_costs
 
-    :type dataset: string
-    :param dataset: path the the pickled dataset
+    def mean_validation_loss(self):
+        """docstring for mean_validation_loss"""
+        return numpy.mean(self.validation_errors())
+        
+    def mean_test_loss(self):
+        """docstring for mean_test_loss"""
+        return numpy.mean(self.test_errors())
+    
+    def train(self, patience, patience_increase = 2.0, improvement_threshold = 0.995):
+        """docstring for train"""
+        patience = 10 * self.n_train_batches  # look as this many examples regardless
+        return super(StackedDenoisingAutoencoder, self).train(patience, patience_increase, improvement_threshold)
+    
+    def initialize(self, finetune_lr=0.1):
+        """
+        Demonstrates how to train and test a stochastic denoising autoencoder.
 
-    """
+        This is demonstrated on MNIST.
 
-    datasets = load_data(dataset)
+        :type learning_rate: float
+        :param learning_rate: learning rate used in the finetune stage
+        (factor for the stochastic gradient)
 
-    train_set_x, train_set_y = datasets[0]
-    valid_set_x, valid_set_y = datasets[1]
-    test_set_x, test_set_y = datasets[2]
+        :type pretrain_lr: float
+        :param pretrain_lr: learning rate to be used during pre-training
 
-    # compute number of minibatches for training, validation and testing
-    n_train_batches = train_set_x.get_value(borrow=True).shape[0]
-    n_train_batches /= batch_size
+        :type n_iter: int
+        :param n_iter: maximal number of iterations ot run the optimizer
+        """
+        ########################
+        # FINETUNING THE MODEL #
+        ########################
 
-    # numpy random generator
-    numpy_rng = numpy.random.RandomState(89677)
-    print '... building the model'
-    # construct the stacked denoising autoencoder class
-    sda = SdA(numpy_rng=numpy_rng, n_ins=28 * 28,
-              hidden_layers_sizes=[1000, 1000, 1000],
-              n_outs=10)
-
-    #########################
-    # PRETRAINING THE MODEL #
-    #########################
-    print '... getting the pretraining functions'
-    pretraining_fns = sda.pretraining_functions(train_set_x=train_set_x,
-                                                batch_size=batch_size)
-
-    print '... pre-training the model'
+        # get the training, validation and testing function for the model
+        self.train_model, self.validation_errors, self.test_errors = self.sda.build_finetune_functions(
+            dataset = self.dataset, 
+            batch_size = self.batch_size,
+            learning_rate = finetune_lr
+        )
+        
+if __name__ == '__main__':
+    dataset = DataSet()
+    dataset.load()
+    sda = StackedDenoisingAutoencoder(dataset)
+    sda.preinitialize()
     start_time = time.clock()
-    ## Pre-train layer-wise
-    corruption_levels = [.1, .2, .3]
-    for i in xrange(sda.n_layers):
-        # go through pretraining epochs
-        for epoch in xrange(pretraining_epochs):
-            # go through the training set
-            c = []
-            for batch_index in xrange(n_train_batches):
-                c.append(pretraining_fns[i](index=batch_index,
-                         corruption=corruption_levels[i],
-                         lr=pretrain_lr))
-            print 'Pre-training layer %i, epoch %d, cost ' % (i, epoch),
-            print numpy.mean(c)
-
+    layer_epoch_costs = sda.pretrain()
     end_time = time.clock()
-
     print >> sys.stderr, ('The pretraining code for file ' +
                           os.path.split(__file__)[1] +
                           ' ran for %.2fm' % ((end_time - start_time) / 60.))
-
-    ########################
-    # FINETUNING THE MODEL #
-    ########################
-
-    # get the training, validation and testing function for the model
-    print '... getting the finetuning functions'
-    train_fn, validate_model, test_model = sda.build_finetune_functions(
-                datasets=datasets, batch_size=batch_size,
-                learning_rate=finetune_lr)
-
-    print '... finetunning the model'
-    # early-stopping parameters
-    patience = 10 * n_train_batches  # look as this many examples regardless
-    patience_increase = 2.  # wait this much longer when a new best is
-                            # found
-    improvement_threshold = 0.995  # a relative improvement of this much is
-                                   # considered significant
-    validation_frequency = min(n_train_batches, patience / 2)
-                                  # go through this many
-                                  # minibatche before checking the network
-                                  # on the validation set; in this case we
-                                  # check every epoch
-
-    best_params = None
-    best_validation_loss = numpy.inf
-    test_score = 0.
+    sda.initialize()
     start_time = time.clock()
-
-    done_looping = False
-    epoch = 0
-
-    while (epoch < training_epochs) and (not done_looping):
-        epoch = epoch + 1
-        for minibatch_index in xrange(n_train_batches):
-            minibatch_avg_cost = train_fn(minibatch_index)
-            iter = (epoch - 1) * n_train_batches + minibatch_index
-
-            if (iter + 1) % validation_frequency == 0:
-                validation_losses = validate_model()
-                this_validation_loss = numpy.mean(validation_losses)
-                print('epoch %i, minibatch %i/%i, validation error %f %%' %
-                      (epoch, minibatch_index + 1, n_train_batches,
-                       this_validation_loss * 100.))
-
-                # if we got the best validation score until now
-                if this_validation_loss < best_validation_loss:
-
-                    #improve patience if loss improvement is good enough
-                    if (this_validation_loss < best_validation_loss *
-                        improvement_threshold):
-                        patience = max(patience, iter * patience_increase)
-
-                    # save best validation score and iteration number
-                    best_validation_loss = this_validation_loss
-                    best_iter = iter
-
-                    # test it on the test set
-                    test_losses = test_model()
-                    test_score = numpy.mean(test_losses)
-                    print(('     epoch %i, minibatch %i/%i, test error of '
-                           'best model %f %%') %
-                          (epoch, minibatch_index + 1, n_train_batches,
-                           test_score * 100.))
-
-            if patience <= iter:
-                done_looping = True
-                break
-
+    epoch_validation_losses, best_validation_loss, best_iter, test_score = sda.train(None)
     end_time = time.clock()
-    print(('Optimization complete with best validation score of %f %%,'
-           'with test performance %f %%') %
-                 (best_validation_loss * 100., test_score * 100.))
     print >> sys.stderr, ('The training code for file ' +
                           os.path.split(__file__)[1] +
                           ' ran for %.2fm' % ((end_time - start_time) / 60.))
-
-
-if __name__ == '__main__':
-    test_SdA()
+    print(('Optimization complete with best validation score of %f %%,'
+           'with test performance %f %%') %
+                 (best_validation_loss * 100., test_score * 100.))
