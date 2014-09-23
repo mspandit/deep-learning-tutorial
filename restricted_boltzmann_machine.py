@@ -326,7 +326,8 @@ class RestrictedBoltzmannMachine(object):
         n_train_batches = self.dataset.train_set_input.get_value(borrow=True).shape[0] / self.batch_size
         epoch_costs = []
         # go through training epochs
-        for epoch in xrange(self.training_epochs):
+        epoch = 0
+        while (epoch < self.training_epochs):
             # go through the training set
             mean_cost = []
             for batch_index in xrange(n_train_batches):
@@ -345,6 +346,7 @@ class RestrictedBoltzmannMachine(object):
             image.save('filters_at_epoch_%i.png' % epoch)
             plotting_stop = time.clock()
             plotting_time += (plotting_stop - plotting_start)
+            epoch += 1
         return epoch_costs, plotting_time
         
     def initialize(self, learning_rate=0.1, n_chains=20, n_samples=10, output_folder='rbm_plots', n_hidden=500):

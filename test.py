@@ -6,7 +6,7 @@ from convolutional_multilayer_perceptron import ConvolutionalMultilayerPerceptro
 from denoising_autoencoder import DenoisingAutoencoder
 from stacked_denoising_autoencoder import StackedDenoisingAutoencoder
 from restricted_boltzmann_machine import RestrictedBoltzmannMachine
-from deep_belief_network import DeepBeliefNetwork
+from deep_belief_network import DeepBeliefNetworkTrainer
 from data_set import DataSet
 
 class TestTutorials(unittest.TestCase):
@@ -24,13 +24,15 @@ class TestTutorials(unittest.TestCase):
         self.assertEqual(test_score, 0.45000000000000001)
         
     def test_deep_belief_network(self):
-        dbn = DeepBeliefNetwork(self.dataset, batch_size = 2, pretraining_epochs = 1, training_epochs = 1)
+        dbn = DeepBeliefNetworkTrainer(self.dataset, batch_size = 2, pretraining_epochs = 1, training_epochs = 1)
         dbn.initialize()
         
         layer_epoch_costs = dbn.pretrain()
-        self.assertEqual(layer_epoch_costs, [[-229.57465974291591], [-724.56407666785856], [-237.06892045897598]])
+        self.assertTrue(layer_epoch_costs[0][0] > -229.574659742916 and layer_epoch_costs[0][0] < -229.574659742915)
+        self.assertTrue(layer_epoch_costs[1][0] > -724.564076667859 and layer_epoch_costs[1][0] < -724.564076667856)
+        self.assertTrue(layer_epoch_costs[2][0] > -237.068920458976 and layer_epoch_costs[2][0] < -237.068920458975)
         
-        best_validation_loss, best_iter, test_score = dbn.train()
+        epoch_losses, best_validation_loss, best_iter, test_score = dbn.train()
         self.assertEqual(best_validation_loss, 0.79)
         self.assertEqual(best_iter, 49)
         self.assertEqual(test_score, 0.76)
@@ -39,7 +41,7 @@ class TestTutorials(unittest.TestCase):
         da = DenoisingAutoencoder(self.dataset, training_epochs = 1, batch_size = 2)
         uncorrupt_costs, corrupt_costs = da.evaluate()
         self.assertEqual(uncorrupt_costs, [149.16503228187111])
-        self.assertEqual(corrupt_costs, [173.66499408829787])
+        self.assertTrue(corrupt_costs[0] > 173.6649940882978 and corrupt_costs[0] < 173.6649940882979)
         
     def test_logistic_classifier(self):
         lc = LogisticClassifierTrainer(self.dataset, batch_size = 2, n_epochs = 1)

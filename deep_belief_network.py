@@ -252,7 +252,9 @@ class DBN(object):
 
         return train_fn, valid_score, test_score
 
-class DeepBeliefNetwork(object):
+from trainer import Trainer
+
+class DeepBeliefNetworkTrainer(Trainer):
     """docstring for DeepBeliefNetwork"""
     def __init__(self, dataset, pretraining_epochs=100, training_epochs=1000, 
                  pretrain_lr=0.01, finetune_lr = 0.1, 
@@ -273,13 +275,10 @@ class DeepBeliefNetwork(object):
         :type batch_size: int
         :param batch_size: the size of a minibatch
         """
-        super(DeepBeliefNetwork, self).__init__()
-        self.dataset = dataset
+        super(DeepBeliefNetworkTrainer, self).__init__(dataset, batch_size, training_epochs)
         self.pretraining_epochs = pretraining_epochs
-        self.training_epochs = training_epochs
         self.pretrain_lr = pretrain_lr
         self.finetune_lr = finetune_lr
-        self.batch_size = batch_size
 
         # compute number of minibatches for training, validation and testing
         self.n_train_batches = self.dataset.train_set_input.get_value(borrow=True).shape[0] / self.batch_size
@@ -304,60 +303,20 @@ class DeepBeliefNetwork(object):
             layer_epoch_costs.append(epoch_costs)
     
         return layer_epoch_costs
+    
+    def mean_validation_loss(self):
+        """docstring for mean_validation_loss"""
+        return numpy.mean(self.validate_model())
+        
+    def mean_test_loss(self):
+        """docstring for mean_test_loss"""
+        return numpy.mean(self.test_model())
 
-    def train(self):
+    def train(self, patience_increase = 2.0, improvement_threshold = 0.995):
         """docstring for train"""
-
-        best_validation_loss = numpy.inf
-        test_score = 0.
-
         # early-stopping parameters
         patience = 4 * self.n_train_batches  # look as this many examples regardless
-        patience_increase = 2.    # wait this much longer when a new best is
-                                  # found
-        improvement_threshold = 0.995  # a relative improvement of this much is
-                                       # considered significant
-        validation_frequency = min(self.n_train_batches, patience / 2)
-                                      # go through this many
-                                      # minibatche before checking the network
-                                      # on the validation set; in this case we
-                                      # check every epoch
-
-        done_looping = False
-        epoch = 0
-
-        while (epoch < self.training_epochs) and (not done_looping):
-            epoch = epoch + 1
-            for minibatch_index in xrange(self.n_train_batches):
-
-                minibatch_avg_cost = self.train_fn(minibatch_index)
-                iter = (epoch - 1) * self.n_train_batches + minibatch_index
-
-                if (iter + 1) % validation_frequency == 0:
-
-                    validation_losses = self.validate_model()
-                    this_validation_loss = numpy.mean(validation_losses)
-
-                    # if we got the best validation score until now
-                    if this_validation_loss < best_validation_loss:
-
-                        #improve patience if loss improvement is good enough
-                        if (this_validation_loss < best_validation_loss *
-                            improvement_threshold):
-                            patience = max(patience, iter * patience_increase)
-
-                        # save best validation score and iteration number
-                        best_validation_loss = this_validation_loss
-                        best_iter = iter
-
-                        # test it on the test set
-                        test_losses = self.test_model()
-                        test_score = numpy.mean(test_losses)
-
-                if patience <= iter:
-                    done_looping = True
-                    break
-        return [best_validation_loss, best_iter, test_score]
+        return super(DeepBeliefNetworkTrainer, self).train(patience, patience_increase, improvement_threshold)
 
     def initialize(self, k = 1):
         """
@@ -380,7 +339,7 @@ class DeepBeliefNetwork(object):
             k = k
         )
 
-        self.train_fn, self.validate_model, self.test_model = self.dbn.build_finetune_functions(
+        self.train_model, self.validate_model, self.test_model = self.dbn.build_finetune_functions(
             dataset = self.dataset, 
             batch_size = self.batch_size,
             learning_rate = self.finetune_lr
@@ -402,7 +361,7 @@ if __name__ == '__main__':
                           ' ran for %.2fm' % ((end_time - start_time) / 60.))
 
     start_time = time.clock()
-    best_validation_loss, best_iter, test_score = dbn.train()
+    epoch_losses, best_validation_loss, best_iter, test_score = dbn.train()
     end_time = time.clock()
     print >> sys.stderr, ('The fine tuning code for file ' +
                           os.path.split(__file__)[1] +
