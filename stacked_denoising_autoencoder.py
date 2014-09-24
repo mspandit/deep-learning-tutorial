@@ -57,9 +57,15 @@ class SdA(object):
     the dAs are only used to initialize the weights.
     """
 
-    def __init__(self, numpy_rng, theano_rng=None, n_ins=784,
-                 hidden_layers_sizes=[500, 500], n_outs=10,
-                 corruption_levels=[0.1, 0.1]):
+    def __init__(
+        self, 
+        numpy_rng, 
+        theano_rng = None, 
+        n_ins = 784,
+        hidden_layers_sizes = [500, 500], 
+        n_outs = 10,
+        corruption_levels=[0.1, 0.1]
+    ):
         """ This class is made to support a variable number of layers.
 
         :type numpy_rng: numpy.random.RandomState
@@ -127,11 +133,13 @@ class SdA(object):
             else:
                 layer_input = self.sigmoid_layers[-1].output
 
-            sigmoid_layer = HiddenLayer(rng=numpy_rng,
-                                        input=layer_input,
-                                        n_in=input_size,
-                                        n_out=hidden_layers_sizes[i],
-                                        activation=T.nnet.sigmoid)
+            sigmoid_layer = HiddenLayer(
+                rng = numpy_rng,
+                input = layer_input,
+                n_in = input_size,
+                n_out = hidden_layers_sizes[i],
+                activation = T.nnet.sigmoid
+            )
             # add the layer to our list of layers
             self.sigmoid_layers.append(sigmoid_layer)
             # its arguably a philosophical question...
@@ -156,8 +164,10 @@ class SdA(object):
 
         # We now need to add a logistic layer on top of the MLP
         self.logLayer = LogisticClassifier(
-                         input=self.sigmoid_layers[-1].output,
-                         n_in=hidden_layers_sizes[-1], n_out=n_outs)
+            input = self.sigmoid_layers[-1].output,
+            n_in = hidden_layers_sizes[-1], 
+            n_out = n_outs
+        )
 
         self.params.extend(self.logLayer.params)
         # construct a function that implements one step of finetunining
@@ -260,30 +270,34 @@ class SdA(object):
             updates.append((param, param - gparam * learning_rate))
 
         train_model = theano.function(inputs=[index],
-              outputs=self.finetune_cost,
-              updates=updates,
-              givens={
-                self.x: dataset.train_set_input[index * batch_size:
-                                    (index + 1) * batch_size],
-                self.y: dataset.train_set_output[index * batch_size:
-                                    (index + 1) * batch_size]},
-              name='train')
+            outputs = self.finetune_cost,
+            updates = updates,
+            givens = {
+                self.x: dataset.train_set_input[index * batch_size : (index + 1) * batch_size],
+                self.y: dataset.train_set_output[index * batch_size : (index + 1) * batch_size]
+            },
+            name = 'train'
+        )
 
-        test_score_i = theano.function([index], self.errors,
-                 givens={
-                   self.x: dataset.test_set_input[index * batch_size:
-                                      (index + 1) * batch_size],
-                   self.y: dataset.test_set_output[index * batch_size:
-                                      (index + 1) * batch_size]},
-                      name='test')
+        test_score_i = theano.function(
+            inputs = [index], 
+            outputs = self.errors,
+            givens = {
+                self.x: dataset.test_set_input[index * batch_size : (index + 1) * batch_size],
+                self.y: dataset.test_set_output[index * batch_size : (index + 1) * batch_size]
+            },
+            name = 'test'
+        )
 
-        valid_score_i = theano.function([index], self.errors,
-              givens={
-                 self.x: dataset.valid_set_input[index * batch_size:
-                                     (index + 1) * batch_size],
-                 self.y: dataset.valid_set_output[index * batch_size:
-                                     (index + 1) * batch_size]},
-                      name='valid')
+        valid_score_i = theano.function(
+            inputs = [index], 
+            outputs = self.errors,
+            givens = {
+                self.x: dataset.valid_set_input[index * batch_size : (index + 1) * batch_size],
+                self.y: dataset.valid_set_output[index * batch_size : (index + 1) * batch_size]
+            },
+            name = 'valid'
+        )
 
         # Create a function that scans the entire validation set
         def valid_score():
@@ -305,6 +319,9 @@ class StackedDenoisingAutoencoder(Trainer):
         """
         :type pretraining_epochs: int
         :param pretraining_epochs: number of epoch to do pretraining
+
+        :type pretrain_lr: float
+        :param pretrain_lr: learning rate to be used during pre-training
         """
         super(StackedDenoisingAutoencoder, self).__init__(dataset, batch_size, n_epochs)
         self.pretraining_epochs = pretraining_epochs
@@ -319,15 +336,20 @@ class StackedDenoisingAutoencoder(Trainer):
         self.numpy_rng = numpy.random.RandomState(89677)
 
         # construct the stacked denoising autoencoder class
-        self.sda = SdA(numpy_rng=self.numpy_rng, n_ins=28 * 28,
-                  hidden_layers_sizes=[1000, 1000, 1000],
-                  n_outs=10)
+        self.sda = SdA(
+            numpy_rng = self.numpy_rng, 
+            n_ins = 28 * 28,
+            hidden_layers_sizes = [1000, 1000, 1000],
+            n_outs=10
+        )
 
         #########################
         # PRETRAINING THE MODEL #
         #########################
-        self.pretraining_fns = self.sda.pretraining_functions(train_set_input=self.dataset.train_set_input,
-                                                    batch_size=self.batch_size)
+        self.pretraining_fns = self.sda.pretraining_functions(
+            train_set_input = self.dataset.train_set_input,
+            batch_size = self.batch_size
+        )
     
     def pretrain(self):
         """docstring for pretrain"""
@@ -335,18 +357,22 @@ class StackedDenoisingAutoencoder(Trainer):
         ## Pre-train layer-wise
         corruption_levels = [.1, .2, .3]
         layer_epoch_costs = []
-        for i in xrange(self.sda.n_layers):
+        for layer_index in xrange(self.sda.n_layers):
             # go through pretraining epochs
             epoch_costs = []
             for epoch in xrange(self.pretraining_epochs):
                 # go through the training set
-                c = []
+                layer_costs = []
                 for batch_index in xrange(self.n_train_batches):
-                    c.append(self.pretraining_fns[i](index=batch_index,
-                             corruption=corruption_levels[i],
-                             lr=self.pretrain_lr))
+                    layer_costs.append(
+                        self.pretraining_fns[layer_index](
+                            index = batch_index,
+                            corruption = corruption_levels[layer_index],
+                            lr = self.pretrain_lr
+                        )
+                    )
                 # print 'Pretraining layer %d, epoch %d, cost %f' % (i, epoch, numpy.mean(c))
-                epoch_costs.append(numpy.mean(c))
+                epoch_costs.append(numpy.mean(layer_costs))
             layer_epoch_costs.append(epoch_costs)
         return layer_epoch_costs
 
@@ -372,9 +398,6 @@ class StackedDenoisingAutoencoder(Trainer):
         :type learning_rate: float
         :param learning_rate: learning rate used in the finetune stage
         (factor for the stochastic gradient)
-
-        :type pretrain_lr: float
-        :param pretrain_lr: learning rate to be used during pre-training
 
         :type n_iter: int
         :param n_iter: maximal number of iterations ot run the optimizer
