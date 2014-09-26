@@ -250,14 +250,15 @@ class DenoisingAutoencoder(object):
         self.batch_size = batch_size
         
     def train(self):
-        """docstring for train"""
+        """TODO: Factor this into Trainer"""
         ############
         # TRAINING #
         ############
 
         # go through training epochs
         costs = []
-        for epoch in xrange(self.training_epochs):
+        epoch = 0
+        while epoch < self.training_epochs:
             # go through trainng set
             c = []
             for batch_index in xrange(self.n_train_batches):
@@ -265,6 +266,7 @@ class DenoisingAutoencoder(object):
             # print 'Training epoch %d, cost %f' % (epoch, numpy.mean(c))
             costs.append(numpy.mean(c))
         
+            epoch += 1
         return costs
         
     def build_model(self, x, corruption_level = 0.0):

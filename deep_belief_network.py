@@ -284,7 +284,7 @@ class DeepBeliefNetworkTrainer(Trainer):
         self.n_train_batches = self.dataset.train_set_input.get_value(borrow=True).shape[0] / self.batch_size
         
     def pretrain(self):
-        """docstring for pretrain"""
+        """TODO: Factor this into Trainer."""
 
         layer_epoch_costs = []
 
@@ -296,8 +296,12 @@ class DeepBeliefNetworkTrainer(Trainer):
                 # go through the training set
                 c = []
                 for batch_index in xrange(self.n_train_batches):
-                    c.append(self.pretraining_fns[i](index=batch_index,
-                                                lr=self.pretrain_lr))
+                    c.append(
+                        self.pretraining_fns[i](
+                            index = batch_index,
+                            lr = self.pretrain_lr
+                        )
+                    )
                 epoch_costs.append(numpy.mean(c))
                 # print 'Pre-training layer %d, epoch %d, cost %f' % (i, epoch, numpy.mean(c))
             layer_epoch_costs.append(epoch_costs)

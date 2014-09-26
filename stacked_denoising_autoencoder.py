@@ -352,7 +352,7 @@ class StackedDenoisingAutoencoder(Trainer):
         )
     
     def pretrain(self):
-        """docstring for pretrain"""
+        """TODO: Factor this into Trainer."""
     
         ## Pre-train layer-wise
         corruption_levels = [.1, .2, .3]
@@ -360,7 +360,8 @@ class StackedDenoisingAutoencoder(Trainer):
         for layer_index in xrange(self.sda.n_layers):
             # go through pretraining epochs
             epoch_costs = []
-            for epoch in xrange(self.pretraining_epochs):
+            epoch = 0
+            while epoch < self.pretraining_epochs:
                 # go through the training set
                 layer_costs = []
                 for batch_index in xrange(self.n_train_batches):
@@ -373,6 +374,7 @@ class StackedDenoisingAutoencoder(Trainer):
                     )
                 # print 'Pretraining layer %d, epoch %d, cost %f' % (i, epoch, numpy.mean(c))
                 epoch_costs.append(numpy.mean(layer_costs))
+                epoch += 1
             layer_epoch_costs.append(epoch_costs)
         return layer_epoch_costs
 

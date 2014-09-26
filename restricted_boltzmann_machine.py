@@ -321,7 +321,7 @@ class RestrictedBoltzmannMachine(object):
         self.batch_size = batch_size
         
     def train(self):
-        """docstring for train"""
+        """TODO: Factor this into Trainer"""
         plotting_time = 0.
         n_train_batches = self.dataset.train_set_input.get_value(borrow=True).shape[0] / self.batch_size
         epoch_costs = []
@@ -329,23 +329,28 @@ class RestrictedBoltzmannMachine(object):
         epoch = 0
         while (epoch < self.training_epochs):
             # go through the training set
-            mean_cost = []
+            costs = []
             for batch_index in xrange(n_train_batches):
-                mean_cost += [self.train_rbm(batch_index)]
+                costs.append(self.train_rbm(batch_index))
 
-            epoch_costs.append(numpy.mean(mean_cost))
+            epoch_costs.append(numpy.mean(costs))
             # print 'Training epoch %d, cost is %f' % (epoch, numpy.mean(mean_cost))
         
             # Plot filters after each training epoch
             plotting_start = time.clock()
             # Construct image from the weight matrix
-            image = Image.fromarray(tile_raster_images(
-                     X=self.rbm.W.get_value(borrow=True).T,
-                     img_shape=(28, 28), tile_shape=(10, 10),
-                     tile_spacing=(1, 1)))
+            image = Image.fromarray(
+                tile_raster_images(
+                    X = self.rbm.W.get_value(borrow = True).T,
+                    img_shape = (28, 28), 
+                    tile_shape = (10, 10),
+                    tile_spacing = (1, 1)
+                )
+            )
             image.save('filters_at_epoch_%i.png' % epoch)
             plotting_stop = time.clock()
             plotting_time += (plotting_stop - plotting_start)
+
             epoch += 1
         return epoch_costs, plotting_time
         
