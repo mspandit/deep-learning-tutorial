@@ -1,3 +1,4 @@
+import theano
 import numpy
 
 class Trainer(object):
@@ -48,3 +49,36 @@ class Trainer(object):
     def mean_test_loss(self):
         """docstring for mean_test_loss"""
         return numpy.mean([self.test_errors(batch_index) for batch_index in xrange(self.n_test_batches)])
+
+    def initialize_validation_function(self, classifier, minibatch_index, inputs, outputs):
+        """docstring for initialize_validation_function"""
+        return theano.function(
+            inputs = [minibatch_index],
+            outputs = classifier.errors(outputs),
+            givens = {
+                inputs: self.dataset.valid_set_input[minibatch_index * self.batch_size:(minibatch_index + 1) * self.batch_size],
+                outputs: self.dataset.valid_set_output[minibatch_index * self.batch_size:(minibatch_index + 1) * self.batch_size]
+            }
+        )
+
+    def initialize_test_function(self, classifier, minibatch_index, inputs, outputs):
+        """docstring for initialize_test_function"""
+        return theano.function(
+            inputs = [minibatch_index],
+            outputs = classifier.errors(outputs),
+            givens = {
+                inputs: self.dataset.test_set_input[minibatch_index * self.batch_size:(minibatch_index + 1) * self.batch_size],
+                outputs: self.dataset.test_set_output[minibatch_index * self.batch_size:(minibatch_index + 1) * self.batch_size]
+            }
+        )
+
+    def initialize_training_function(self, classifier, minibatch_index, inputs, outputs, learning_rate):
+        """docstring for initialize_training_function"""
+        return theano.function(
+            inputs = [minibatch_index], 
+            updates = classifier.updates(outputs, learning_rate),
+            givens = {
+                inputs: self.dataset.train_set_input[minibatch_index * self.batch_size:(minibatch_index + 1) * self.batch_size],
+                outputs: self.dataset.train_set_output[minibatch_index * self.batch_size:(minibatch_index + 1) * self.batch_size]
+            }
+        )

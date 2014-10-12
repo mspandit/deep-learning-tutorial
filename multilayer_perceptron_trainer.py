@@ -2,8 +2,8 @@ import time
 import numpy
 import theano.tensor as Tensor
 from trainer import Trainer
-from multilayer_perceptron_classifier import MultilayerPerceptronClassifier
-
+from multilayer_perceptron import MultilayerPerceptron
+        
 class MultilayerPerceptronTrainer(Trainer):
     """docstring for MultilayerPerceptron"""
     def __init__(self, dataset, n_epochs = 1000, batch_size = 20):
@@ -15,40 +15,43 @@ class MultilayerPerceptronTrainer(Trainer):
         """
         """
 
-        minibatch_index = Tensor.lscalar() 
+        minibatch_index = Tensor.lscalar()
         inputs = Tensor.matrix('inputs')
         outputs = Tensor.ivector('outputs')
 
         rng = numpy.random.RandomState(1234)
 
-        classifier = MultilayerPerceptronClassifier(
+        classifier = MultilayerPerceptron(
             rng=rng,
+            input=inputs,
             n_in=28 * 28,
             n_hidden=n_hidden,
             n_out=10
         )
 
-        self.test_eval_function = self.initialize_test_function(
+        self.test_errors = self.initialize_test_function(
             classifier,
             minibatch_index,
             inputs,
             outputs
         )
-        
-        self.validation_eval_function = self.initialize_validation_function(
+
+        self.validation_errors = self.initialize_validation_function(
             classifier,
             minibatch_index,
             inputs,
             outputs
         )
-        
-        self.training_function = self.initialize_training_function(
+
+        # compiling a Theano function `train_model` that updates the parameter of the model based on the rules
+        # defined in `updates`
+        self.train_model = self.initialize_training_function(
             classifier,
             minibatch_index,
             inputs,
             outputs,
             learning_rate
-        )
+        ) 
 
 
 from data_set import DataSet

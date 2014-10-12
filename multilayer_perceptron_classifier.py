@@ -25,7 +25,6 @@ import cPickle
 import gzip
 import os
 import sys
-import time
 
 import numpy
 
@@ -36,7 +35,7 @@ import theano.tensor as Tensor
 from logistic_classifier import LogisticClassifier
 from hidden_layer import HiddenLayer
 
-class MultilayerPerceptron(object):
+class MultilayerPerceptronClassifier(object):
     """Multi-Layer Perceptron Class
 
     A multilayer perceptron is a feedforward artificial neural network model
@@ -138,89 +137,3 @@ class MultilayerPerceptron(object):
            C = [(a1, b1), (a2, b2), (a3, b3), (a4, b4)]
         """
         return [(param, param - learning_rate * gparam) for param, gparam in zip(self.params, self.params_gradient(outputs))]
-
-from trainer import Trainer
-        
-class MultilayerPerceptronTrainer(Trainer):
-    """docstring for MultilayerPerceptron"""
-    def __init__(self, dataset, n_epochs = 1000, batch_size = 20):
-        """
-        :type n_epochs: int
-        :param n_epochs: maximal number of epochs to run the optimizer
-        """
-        super(MultilayerPerceptronTrainer, self).__init__(dataset, batch_size, n_epochs)
-
-    def initialize(self, learning_rate=0.01, n_hidden=500):
-        """
-        Demonstrate stochastic gradient descent optimization for a multilayer
-        perceptron
-
-        This is demonstrated on MNISTensor.
-
-        :type learning_rate: float
-        :param learning_rate: learning rate used (factor for the stochastic
-        gradient
-        """
-       
-        ######################
-        # BUILD ACTUAL MODEL #
-        ######################
-
-        # allocate symbolic variables for the data
-        index = Tensor.lscalar()  # index to a [mini]batch
-        x = Tensor.matrix('x')  # the data is presented as rasterized images
-        y = Tensor.ivector('y')  # the labels are presented as 1D vector of
-                            # [int] labels
-
-        rng = numpy.random.RandomState(1234)
-
-        # construct the MultilayerPerceptron class
-        classifier = MultilayerPerceptron(rng = rng, input = x, n_in = 28 * 28, n_hidden = n_hidden, n_out = 10)
-
-        # compiling a Theano function that computes the mistakes that are made
-        # by the model on a minibatch
-        self.test_errors = theano.function(
-            inputs = [index],
-            outputs = classifier.errors(y),
-            givens = {
-                x: self.dataset.test_set_input[index * self.batch_size:(index + 1) * self.batch_size],
-                y: self.dataset.test_set_output[index * self.batch_size:(index + 1) * self.batch_size]
-            }
-        )
-
-        self.validation_errors = theano.function(
-            inputs = [index],
-            outputs = classifier.errors(y),
-            givens = {
-                x: self.dataset.valid_set_input[index * self.batch_size:(index + 1) * self.batch_size],
-                y: self.dataset.valid_set_output[index * self.batch_size:(index + 1) * self.batch_size]
-            }
-        )
-
-        # compiling a Theano function `train_model` that updates the parameter of the model based on the rules
-        # defined in `updates`
-        self.train_model = theano.function(
-            inputs = [index], 
-            updates = classifier.updates(y, learning_rate),
-            givens = {
-                x: self.dataset.train_set_input[index * self.batch_size:(index + 1) * self.batch_size],
-                y: self.dataset.train_set_output[index * self.batch_size:(index + 1) * self.batch_size]
-            }
-        )
-
-from data_set import DataSet
-
-if __name__ == '__main__':
-    dataset = DataSet()
-    dataset.load()
-    mlp = MultilayerPerceptronTrainer(dataset)
-    mlp.initialize()
-    start_time = time.clock()
-    epoch_losses, best_validation_loss, best_iter, test_score = mlp.train(patience = 10000, patience_increase = 2, improvement_threshold = 0.995)
-    end_time = time.clock()
-    print >> sys.stderr, ('The code for file ' +
-                          os.path.split(__file__)[1] +
-                          ' ran for %.2fm' % ((end_time - start_time) / 60.))
-    print(('Optimization complete. Best validation score of %f %% '
-           'obtained at iteration %i, with test performance %f %%') %
-          (best_validation_loss * 100., best_iter + 1, test_score * 100.))
