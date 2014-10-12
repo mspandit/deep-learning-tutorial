@@ -27,7 +27,7 @@ class Trainer(object):
                 iter = (epoch - 1) * n_train_batches + minibatch_index
                 if (iter + 1) % validation_frequency == 0:
                     this_validation_loss = self.mean_validation_loss()
-                    # print 'epoch %d validation error %f%%' % (epoch, this_validation_loss * 100.0)
+                    print 'epoch %d validation error %f%%' % (epoch, this_validation_loss * 100.0)
                     epoch_losses.append([this_validation_loss, iter])
                     if this_validation_loss < best_validation_loss:
                         if this_validation_loss < best_validation_loss * improvement_threshold:
