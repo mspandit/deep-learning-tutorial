@@ -84,7 +84,6 @@ class MultilayerPerceptron(object):
         # sigmoid or any other nonlinear function
         self.hiddenLayer = HiddenLayer(
             rng = rng, 
-            input = input,
             n_in = n_in, 
             n_out = n_hidden,
             nonlinear_function = Tensor.tanh
@@ -93,7 +92,7 @@ class MultilayerPerceptron(object):
         # The logistic regression layer gets as input the hidden units
         # of the hidden layer
         self.logRegressionLayer = LogisticClassifier(
-            input = self.hiddenLayer.output,
+            input = self.hiddenLayer.output_probabilities_function(input),
             n_in = n_hidden,
             n_out = n_out
         )

@@ -33,12 +33,6 @@ class HiddenLayer(Classifier):
 
     def output_probabilities_function(self, inputs):
         """docstring for output_probabilities_function"""
-        
-        lin_output = Tensor.dot(inputs, self.weights) + self.biases
-        return (
-            lin_output if self.nonlinear_function is None
-            else self.nonlinear_function(lin_output)
-        )
 
         if (self.nonlinear_function is None):
             return Tensor.nnet.softmax(
