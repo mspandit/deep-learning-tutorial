@@ -97,19 +97,19 @@ class LogisticClassifier(object):
         """function to compute prediction as class whose probability is maximal"""
         return Tensor.argmax(self.output_probabilities(input), axis = 1)
 
-    def weights_gradient(self, outputs):
+    def weights_gradient(self, inputs, outputs):
         """docstring for weights_gradient"""
-        return Tensor.grad(cost = self.negative_log_likelihood(outputs), wrt = self.weights)
+        return Tensor.grad(cost = self.negative_log_likelihood(inputs, outputs), wrt = self.weights)
         
-    def biases_gradient(self, outputs):
+    def biases_gradient(self, inputs, outputs):
         """docstring for biases_gradient"""
-        return Tensor.grad(cost = self.negative_log_likelihood(outputs), wrt = self.biases)
+        return Tensor.grad(cost = self.negative_log_likelihood(inputs, outputs), wrt = self.biases)
         
-    def updates(self, outputs, learning_rate):
+    def updates(self, inputs, outputs, learning_rate):
         """Specify how to update the parameters of the model as a list of (variable, update expression) pairs."""
         return [
-            (self.weights, self.weights - learning_rate * self.weights_gradient(outputs)),
-            (self.biases, self.biases - learning_rate * self.biases_gradient(outputs))
+            (self.weights, self.weights - learning_rate * self.weights_gradient(inputs, outputs)),
+            (self.biases, self.biases - learning_rate * self.biases_gradient(inputs, outputs))
         ]
     
     def negative_log_likelihood(self, inputs, outputs):
@@ -200,13 +200,13 @@ class LogisticClassifierTrainer(Trainer):
 
         # construct the logistic regression class
         # Each MNIST image has size 28*28
-        classifier = LogisticClassifier(input = inputs, n_in = 28 * 28, n_out = 10)
+        classifier = LogisticClassifier(n_in = 28 * 28, n_out = 10)
 
         # compiling a Theano function that computes the mistakes that are made by
         # the model on a minibatch
         self.test_errors = theano.function(
             inputs = [index],
-            outputs = classifier.errors(outputs),
+            outputs = classifier.errors(inputs, outputs),
             givens = {
                 inputs: self.dataset.test_set_input[index * self.batch_size: (index + 1) * self.batch_size],
                 outputs: self.dataset.test_set_output[index * self.batch_size: (index + 1) * self.batch_size]
@@ -215,7 +215,7 @@ class LogisticClassifierTrainer(Trainer):
 
         self.validation_errors = theano.function(
             inputs = [index],
-            outputs = classifier.errors(outputs),
+            outputs = classifier.errors(inputs, outputs),
             givens = {
                 inputs: self.dataset.valid_set_input[index * self.batch_size:(index + 1) * self.batch_size],
                 outputs: self.dataset.valid_set_output[index * self.batch_size:(index + 1) * self.batch_size]
@@ -230,7 +230,7 @@ class LogisticClassifierTrainer(Trainer):
         # defined in `updates`
         self.train_model = theano.function(
             inputs = [index],
-            updates = classifier.updates(outputs, learning_rate),
+            updates = classifier.updates(inputs, outputs, learning_rate),
             givens = {
                 inputs: self.dataset.train_set_input[index * self.batch_size:(index + 1) * self.batch_size],
                 outputs: self.dataset.train_set_output[index * self.batch_size:(index + 1) * self.batch_size]
