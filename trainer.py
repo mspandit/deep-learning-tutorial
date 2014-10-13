@@ -54,7 +54,7 @@ class Trainer(object):
         """docstring for initialize_validation_function"""
         return theano.function(
             inputs = [minibatch_index],
-            outputs = classifier.errors(outputs),
+            outputs = classifier.evaluation_function(outputs),
             givens = {
                 inputs: self.dataset.valid_set_input[minibatch_index * self.batch_size:(minibatch_index + 1) * self.batch_size],
                 outputs: self.dataset.valid_set_output[minibatch_index * self.batch_size:(minibatch_index + 1) * self.batch_size]
@@ -65,7 +65,7 @@ class Trainer(object):
         """docstring for initialize_test_function"""
         return theano.function(
             inputs = [minibatch_index],
-            outputs = classifier.errors(outputs),
+            outputs = classifier.evaluation_function(outputs),
             givens = {
                 inputs: self.dataset.test_set_input[minibatch_index * self.batch_size:(minibatch_index + 1) * self.batch_size],
                 outputs: self.dataset.test_set_output[minibatch_index * self.batch_size:(minibatch_index + 1) * self.batch_size]
