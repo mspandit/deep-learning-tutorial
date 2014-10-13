@@ -2,7 +2,7 @@ import time
 import numpy
 import theano.tensor as Tensor
 from trainer import Trainer
-from multilayer_perceptron import MultilayerPerceptron
+from multilayer_perceptron_classifier import MultilayerPerceptronClassifier
         
 class MultilayerPerceptronTrainer(Trainer):
     """docstring for MultilayerPerceptron"""
@@ -21,7 +21,7 @@ class MultilayerPerceptronTrainer(Trainer):
 
         rng = numpy.random.RandomState(1234)
 
-        classifier = MultilayerPerceptron(
+        classifier = MultilayerPerceptronClassifier(
             rng=rng,
             input=inputs,
             n_in=28 * 28,

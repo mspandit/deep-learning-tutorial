@@ -1,5 +1,6 @@
 import numpy
 import theano
+import theano.tensor as Tensor
 
 class Classifier(object):
     """docstring for Classifier"""
@@ -14,3 +15,18 @@ class Classifier(object):
             self.biases = theano.shared(value = biases_values, name=name, borrow=True)
         else:
             self.biases = biases
+
+        
+    def params_gradient(self, outputs):
+        """compute the gradient of cost with respect to theta (stored in params). the resulting gradients will be stored in a list gparams"""
+        return [Tensor.grad(self.cost_function(outputs), param) for param in self.params]
+        
+    def updates(self, outputs, learning_rate):
+        """
+        specify how to update the parameters of the model as a list of (variable, update expression) pairs
+        given two list the zip A = [a1, a2, a3, a4] and B = [b1, b2, b3, b4] of
+        same length, zip generates a list C of same size, where each element
+        is a pair formed from the two lists :
+           C = [(a1, b1), (a2, b2), (a3, b3), (a4, b4)]
+        """
+        return [(param, param - learning_rate * gparam) for param, gparam in zip(self.params, self.params_gradient(outputs))]
