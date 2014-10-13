@@ -35,7 +35,7 @@ from theano.tensor.signal import downsample
 from theano.tensor.nnet import conv
 
 from logistic_classifier import LogisticClassifier
-from multilayer_perceptron import HiddenLayer
+from hidden_layer import HiddenLayer
 
 
 class LeNetConvPoolLayer(object):
@@ -178,22 +178,32 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
         # construct a fully-connected sigmoidal layer
         layer2 = HiddenLayer(
             rng, 
-            input = layer2_input, 
+            # input = layer2_input, 
             n_in = nkerns[1] * 4 * 4,
             n_out = 500, 
-            activation=Tensor.tanh
+            nonlinear_function=Tensor.tanh
         )
 
         # classify the values of the fully-connected sigmoidal layer
-        layer3 = LogisticClassifier(input = layer2.output, n_in = 500, n_out = 10)
+        layer3 = LogisticClassifier(n_in = 500, n_out = 10)
 
         # the cost we minimize during training is the NLL of the model
-        cost = layer3.negative_log_likelihood(y)
+        cost = layer3.negative_log_likelihood(
+            layer2.output_probabilities_function(
+                layer2_input
+            ),
+            y
+        )
 
         # create a function to compute the mistakes that are made by the model
         self.test_errors = theano.function(
             inputs = [index], 
-            outputs = layer3.errors(y),
+            outputs = layer3.errors(
+                layer2.output_probabilities_function(
+                    layer2_input
+                ), 
+                y
+            ),
             givens = {
                 x: self.dataset.test_set_input[index * self.batch_size: (index + 1) * self.batch_size],
                 y: self.dataset.test_set_output[index * self.batch_size: (index + 1) * self.batch_size]
@@ -202,7 +212,12 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
 
         self.validation_errors = theano.function(
             inputs = [index], 
-            outputs = layer3.errors(y),
+            outputs = layer3.errors(
+                layer2.output_probabilities_function(
+                    layer2_input
+                ),
+                y
+            ),
             givens = {
                 x: self.dataset.valid_set_input[index * self.batch_size: (index + 1) * self.batch_size],
                 y: self.dataset.valid_set_output[index * self.batch_size: (index + 1) * self.batch_size]

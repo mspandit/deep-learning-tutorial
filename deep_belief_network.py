@@ -13,7 +13,7 @@ import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
 from logistic_classifier import LogisticClassifier
-from multilayer_perceptron import HiddenLayer
+from hidden_layer import HiddenLayer
 from restricted_boltzmann_machine import RBM
 
 

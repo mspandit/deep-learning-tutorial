@@ -1,7 +1,7 @@
 import unittest
 
 from logistic_classifier import LogisticClassifierTrainer
-from multilayer_perceptron import MultilayerPerceptronTrainer
+from multilayer_perceptron_trainer import MultilayerPerceptronTrainer
 from convolutional_multilayer_perceptron import ConvolutionalMultilayerPerceptronTrainer
 from denoising_autoencoder import DenoisingAutoencoder
 from stacked_denoising_autoencoder import StackedDenoisingAutoencoder
