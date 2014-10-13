@@ -34,7 +34,7 @@ class MultilayerPerceptronClassifier(Classifier):
         )
 
 
-    def __init__(self, rng, input, n_in, n_hidden, n_out, L1_reg=0.00, L2_reg=0.0001):
+    def __init__(self, rng, n_in, n_hidden, n_out, L1_reg=0.00, L2_reg=0.0001):
         """
         """
         super(MultilayerPerceptronClassifier, self).__init__()
@@ -47,7 +47,6 @@ class MultilayerPerceptronClassifier(Classifier):
         )
 
         self.logRegressionLayer = LogisticClassifier(
-            input=self.hiddenLayer.output_probabilities_function(input),
             n_in=n_hidden,
             n_out=n_out
         )
@@ -59,10 +58,10 @@ class MultilayerPerceptronClassifier(Classifier):
         self.L1_reg = L1_reg
         self.L2_reg = L2_reg
     
-    def cost_function(self, outputs):
+    def cost_function(self, inputs, outputs):
         """docstring for cost"""
-        return self.logRegressionLayer.negative_log_likelihood(outputs) + self.L1_reg * self.L1 + self.L2_reg * self.L2_sqr
+        return self.logRegressionLayer.negative_log_likelihood(self.hiddenLayer.output_probabilities_function(inputs), outputs) + self.L1_reg * self.L1 + self.L2_reg * self.L2_sqr
 
-    def evaluation_function(self, outputs):
+    def evaluation_function(self, inputs, outputs):
         """docstring for errors"""
-        return self.logRegressionLayer.errors(outputs)
+        return self.logRegressionLayer.errors(self.hiddenLayer.output_probabilities_function(inputs), outputs)

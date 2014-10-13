@@ -55,7 +55,7 @@ class LogisticClassifier(object):
     determine a class membership probability.
     """
 
-    def __init__(self, input, n_in, n_out):
+    def __init__(self, n_in, n_out):
         """ Initialize the parameters of the logistic regression
 
         :type input: theano.tensor.TensorType
@@ -85,15 +85,17 @@ class LogisticClassifier(object):
             borrow = True
         )
 
-        # function to compute vector of class-membership probabilities
-        self.output_probabilities = Tensor.nnet.softmax(Tensor.dot(input, self.weights) + self.biases)
-
-        # function to compute prediction as class whose probability is maximal
-        self.predicted_output = Tensor.argmax(self.output_probabilities, axis = 1)
-
         # parameters of the model
         self.params = [self.weights, self.biases]
         self.negative_log_likelihood_fn = None
+    
+    def output_probabilities(self, input):
+        """function to compute vector of class-membership probabilities"""
+        return Tensor.nnet.softmax(Tensor.dot(input, self.weights) + self.biases)
+        
+    def predicted_output(self, input):
+        """function to compute prediction as class whose probability is maximal"""
+        return Tensor.argmax(self.output_probabilities(input), axis = 1)
 
     def weights_gradient(self, outputs):
         """docstring for weights_gradient"""
@@ -110,7 +112,7 @@ class LogisticClassifier(object):
             (self.biases, self.biases - learning_rate * self.biases_gradient(outputs))
         ]
     
-    def negative_log_likelihood(self, outputs):
+    def negative_log_likelihood(self, inputs, outputs):
         """Return the mean of the negative log-likelihood of the prediction
         of this model under a given target distribution.
 
@@ -138,10 +140,10 @@ class LogisticClassifier(object):
         # the mean (across minibatch examples) of the elements in v,
         # i.e., the mean log-likelihood across the minibatch.
         if self.negative_log_likelihood_fn == None:
-            self.negative_log_likelihood_fn = -Tensor.mean(Tensor.log(self.output_probabilities)[Tensor.arange(outputs.shape[0]), outputs])
+            self.negative_log_likelihood_fn = -Tensor.mean(Tensor.log(self.output_probabilities(inputs))[Tensor.arange(outputs.shape[0]), outputs])
         return self.negative_log_likelihood_fn
 
-    def errors(self, outputs):
+    def errors(self, inputs, outputs):
         """Return a float representing the number of errors in the minibatch
         over the total number of examples of the minibatch ; zero one
         loss over the size of the minibatch
@@ -152,14 +154,14 @@ class LogisticClassifier(object):
         """
 
         # check if outputs has same dimension of predicted_output
-        if outputs.ndim != self.predicted_output.ndim:
+        if outputs.ndim != self.predicted_output(inputs).ndim:
             raise TypeError('outputs should have the same shape as self.predicted_output',
-                ('outputs', target.type, 'predicted_output', self.predicted_output.type))
+                ('outputs', target.type, 'predicted_output', self.predicted_output(inputs).type))
         # check if outputs is of the correct datatype
         if outputs.dtype.startswith('int'):
             # the Tensor.neq operator returns a vector of 0s and 1s, where 1
             # represents a mistake in prediction
-            return Tensor.mean(Tensor.neq(self.predicted_output, outputs))
+            return Tensor.mean(Tensor.neq(self.predicted_output(inputs), outputs))
         else:
             raise NotImplementedError()
 

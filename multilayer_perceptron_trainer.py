@@ -23,7 +23,6 @@ class MultilayerPerceptronTrainer(Trainer):
 
         classifier = MultilayerPerceptronClassifier(
             rng=rng,
-            input=inputs,
             n_in=28 * 28,
             n_hidden=n_hidden,
             n_out=10

@@ -17,11 +17,11 @@ class Classifier(object):
             self.biases = biases
 
         
-    def params_gradient(self, outputs):
+    def params_gradient(self, inputs, outputs):
         """compute the gradient of cost with respect to theta (stored in params). the resulting gradients will be stored in a list gparams"""
-        return [Tensor.grad(self.cost_function(outputs), param) for param in self.params]
+        return [Tensor.grad(self.cost_function(inputs, outputs), param) for param in self.params]
         
-    def updates(self, outputs, learning_rate):
+    def updates(self, inputs, outputs, learning_rate):
         """
         specify how to update the parameters of the model as a list of (variable, update expression) pairs
         given two list the zip A = [a1, a2, a3, a4] and B = [b1, b2, b3, b4] of
@@ -29,4 +29,4 @@ class Classifier(object):
         is a pair formed from the two lists :
            C = [(a1, b1), (a2, b2), (a3, b3), (a4, b4)]
         """
-        return [(param, param - learning_rate * gparam) for param, gparam in zip(self.params, self.params_gradient(outputs))]
+        return [(param, param - learning_rate * gparam) for param, gparam in zip(self.params, self.params_gradient(inputs, outputs))]
