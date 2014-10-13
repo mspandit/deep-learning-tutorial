@@ -87,7 +87,7 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
         # 4D output tensor is thus of shape (self.batch_size,nkerns[0],12,12)
         layer0 = LeNetConvPoolLayer(
             rng, 
-            input = layer0_input,
+            inputs = layer0_input,
             image_shape = (self.batch_size, 1, 28, 28),
             filter_shape = (nkerns[0], 1, 5, 5), 
             poolsize = (2, 2)
@@ -99,7 +99,7 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
         # 4D output tensor is thus of shape (nkerns[0],nkerns[1],4,4)
         layer1 = LeNetConvPoolLayer(
             rng, 
-            input = layer0.output,
+            inputs = layer0.output,
             image_shape = (self.batch_size, nkerns[0], 12, 12),
             filter_shape = (nkerns[1], nkerns[0], 5, 5), 
             poolsize=(2, 2)
