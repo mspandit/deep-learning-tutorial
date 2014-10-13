@@ -79,7 +79,6 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
 
         # Reshape matrix of rasterized images of shape (self.batch_size,28*28)
         # to a 4D tensor, compatible with our PoolingLayer
-        layer0_input = inputs.reshape((self.batch_size, 1, 28, 28))
 
         # Construct the first convolutional pooling layer:
         # filtering reduces the image size to (28-5+1,28-5+1)=(24,24)
@@ -87,7 +86,6 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
         # 4D output tensor is thus of shape (self.batch_size,nkerns[0],12,12)
         layer0 = PoolingLayer(
             rng, 
-            # inputs = layer0_input,
             image_shape = (self.batch_size, 1, 28, 28),
             filter_shape = (nkerns[0], 1, 5, 5), 
             poolsize = (2, 2)
@@ -99,7 +97,6 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
         # 4D output tensor is thus of shape (nkerns[0],nkerns[1],4,4)
         layer1 = PoolingLayer(
             rng, 
-            # inputs = layer0.output,
             image_shape = (self.batch_size, nkerns[0], 12, 12),
             filter_shape = (nkerns[1], nkerns[0], 5, 5), 
             poolsize=(2, 2)
@@ -108,7 +105,6 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
         # the HiddenLayer being fully-connected, it operates on 2D matrices of
         # shape (self.batch_size,num_pixels) (i.e matrix of rasterized images).
         # This will generate a matrix of shape (20,32*4*4) = (20,512)
-        layer2_input = layer1.output_probabilities_function(layer0.output_probabilities_function(layer0_input)).flatten(2)
 
         # construct a fully-connected sigmoidal layer
         layer2 = HiddenLayer(
@@ -124,7 +120,7 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
         # the cost we minimize during training is the NLL of the model
         cost = layer3.negative_log_likelihood(
             layer2.output_probabilities_function(
-                layer2_input
+                layer1.output_probabilities_function(layer0.output_probabilities_function(inputs.reshape((self.batch_size, 1, 28, 28)))).flatten(2)
             ),
             outputs
         )
@@ -134,7 +130,7 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
             inputs = [index], 
             outputs = layer3.errors(
                 layer2.output_probabilities_function(
-                    layer2_input
+                    layer1.output_probabilities_function(layer0.output_probabilities_function(inputs.reshape((self.batch_size, 1, 28, 28)))).flatten(2)
                 ), 
                 outputs
             ),
@@ -148,7 +144,7 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
             inputs = [index], 
             outputs = layer3.errors(
                 layer2.output_probabilities_function(
-                    layer2_input
+                    layer1.output_probabilities_function(layer0.output_probabilities_function(inputs.reshape((self.batch_size, 1, 28, 28)))).flatten(2)
                 ),
                 outputs
             ),
