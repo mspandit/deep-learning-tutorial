@@ -68,9 +68,8 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
 
         # allocate symbolic variables for the data
         index = Tensor.lscalar()  # index to a [mini]batch
-        x = Tensor.matrix('x')   # the data is presented as rasterized images
-        y = Tensor.ivector('y')  # the labels are presented as 1D vector of
-                            # [int] labels
+        inputs = Tensor.matrix('inputs')
+        outputs = Tensor.ivector('outputs')
 
         ishape = (28, 28)  # this is the size of MNIST images
 
@@ -80,7 +79,7 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
 
         # Reshape matrix of rasterized images of shape (self.batch_size,28*28)
         # to a 4D tensor, compatible with our LeNetConvPoolLayer
-        layer0_input = x.reshape((self.batch_size, 1, 28, 28))
+        layer0_input = inputs.reshape((self.batch_size, 1, 28, 28))
 
         # Construct the first convolutional pooling layer:
         # filtering reduces the image size to (28-5+1,28-5+1)=(24,24)
@@ -114,7 +113,6 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
         # construct a fully-connected sigmoidal layer
         layer2 = HiddenLayer(
             rng, 
-            # input = layer2_input, 
             n_in = nkerns[1] * 4 * 4,
             n_out = 500, 
             nonlinear_function=Tensor.tanh
@@ -128,7 +126,7 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
             layer2.output_probabilities_function(
                 layer2_input
             ),
-            y
+            outputs
         )
 
         # create a function to compute the mistakes that are made by the model
@@ -138,11 +136,11 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
                 layer2.output_probabilities_function(
                     layer2_input
                 ), 
-                y
+                outputs
             ),
             givens = {
-                x: self.dataset.test_set_input[index * self.batch_size: (index + 1) * self.batch_size],
-                y: self.dataset.test_set_output[index * self.batch_size: (index + 1) * self.batch_size]
+                inputs: self.dataset.test_set_input[index * self.batch_size: (index + 1) * self.batch_size],
+                outputs: self.dataset.test_set_output[index * self.batch_size: (index + 1) * self.batch_size]
             }
         )
 
@@ -152,11 +150,11 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
                 layer2.output_probabilities_function(
                     layer2_input
                 ),
-                y
+                outputs
             ),
             givens = {
-                x: self.dataset.valid_set_input[index * self.batch_size: (index + 1) * self.batch_size],
-                y: self.dataset.valid_set_output[index * self.batch_size: (index + 1) * self.batch_size]
+                inputs: self.dataset.valid_set_input[index * self.batch_size: (index + 1) * self.batch_size],
+                outputs: self.dataset.valid_set_output[index * self.batch_size: (index + 1) * self.batch_size]
             }
         )
 
@@ -174,8 +172,8 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
             inputs = [index], 
             updates = updates,
             givens = {
-                x: self.dataset.train_set_input[index * self.batch_size: (index + 1) * self.batch_size],
-                y: self.dataset.train_set_output[index * self.batch_size: (index + 1) * self.batch_size]
+                inputs: self.dataset.train_set_input[index * self.batch_size: (index + 1) * self.batch_size],
+                outputs: self.dataset.train_set_output[index * self.batch_size: (index + 1) * self.batch_size]
             }
         )
 
