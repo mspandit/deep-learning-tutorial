@@ -131,7 +131,10 @@ class SdA(object):
             if i == 0:
                 layer_input = self.x
             else:
-                layer_input = self.sigmoid_layers[-1].output
+                layer_input = (
+                    self.sigmoid_layers[-1]
+                    .output_probabilities_function(layer_input)
+                )
 
             sigmoid_layer = HiddenLayer(
                 rng=numpy_rng,
@@ -164,21 +167,30 @@ class SdA(object):
 
         # We now need to add a logistic layer on top of the MLP
         self.logLayer = LogisticClassifier(
-            input=self.sigmoid_layers[-1].output,
+            # input=self.sigmoid_layers[-1].output_probabilities_function(layer_input),
             n_in=hidden_layers_sizes[-1], 
             n_out=n_outs
         )
 
-        self.params.extend(self.logLayer.params)
+        self.params.extend(self.logLayer.parameters)
         # construct a function that implements one step of finetunining
 
         # compute the cost for second phase of training,
         # defined as the negative log likelihood
-        self.finetune_cost = self.logLayer.negative_log_likelihood(self.y)
+        prev_input = self.x
+        for i in xrange(self.n_layers):
+            # the input to this layer is either the activation of the
+            # hidden layer below or the input of the DBN if you are on
+            # the first layer
+            prev_input = (
+                self.sigmoid_layers[i]
+                .output_probabilities_function(prev_input)
+            )
+        self.finetune_cost = self.logLayer.negative_log_likelihood(prev_input, self.y)
         # compute the gradients with respect to the model parameters
         # symbolic variable that points to the number of errors made on the
         # minibatch given by self.x and self.y
-        self.errors = self.logLayer.errors(self.y)
+        self.errors = self.logLayer.errors(prev_input, self.y)
 
     def pretraining_functions(self, train_set_input, batch_size):
         ''' Generates a list of functions, each of them implementing one
@@ -380,11 +392,11 @@ class StackedDenoisingAutoencoder(Trainer):
 
     def mean_validation_loss(self):
         """docstring for mean_validation_loss"""
-        return numpy.mean(self.validation_errors())
+        return numpy.mean(self.validation_eval_function())
         
     def mean_test_loss(self):
         """docstring for mean_test_loss"""
-        return numpy.mean(self.test_errors())
+        return numpy.mean(self.test_eval_function())
     
     def train(self, patience, patience_increase = 2.0, improvement_threshold = 0.995):
         """docstring for train"""
@@ -409,7 +421,7 @@ class StackedDenoisingAutoencoder(Trainer):
         ########################
 
         # get the training, validation and testing function for the model
-        self.train_model, self.validation_errors, self.test_errors = self.sda.build_finetune_functions(
+        self.training_function, self.validation_eval_function, self.test_eval_function = self.sda.build_finetune_functions(
             dataset = self.dataset, 
             batch_size = self.batch_size,
             learning_rate = finetune_lr

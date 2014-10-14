@@ -93,7 +93,10 @@ class DBN(object):
             if i == 0:
                 layer_input = self.x
             else:
-                layer_input = self.sigmoid_layers[-1].output
+                layer_input = (
+                    self.sigmoid_layers[-1]
+                    .output_probabilities_function(layer_input)
+                )
 
             sigmoid_layer = HiddenLayer(
                 rng=numpy_rng,
@@ -127,19 +130,28 @@ class DBN(object):
 
         # We now need to add a logistic layer on top of the MLP
         self.logLayer = LogisticClassifier(
-            input=self.sigmoid_layers[-1].output,
+            # input=self.sigmoid_layers[-1].output_probabilities_function(layer_input),
             n_in=hidden_layers_sizes[-1],
             n_out=n_outs)
-        self.params.extend(self.logLayer.params)
+        self.params.extend(self.logLayer.parameters)
 
         # compute the cost for second phase of training, defined as the
         # negative log likelihood of the logistic regression (output) layer
-        self.finetune_cost = self.logLayer.negative_log_likelihood(self.y)
+        prev_input = self.x
+        for i in xrange(self.n_layers):
+            # the input to this layer is either the activation of the
+            # hidden layer below or the input of the DBN if you are on
+            # the first layer
+            prev_input = (
+                self.sigmoid_layers[i]
+                .output_probabilities_function(prev_input)
+            )
+        self.finetune_cost = self.logLayer.negative_log_likelihood(prev_input, self.y)
 
         # compute the gradients with respect to the model parameters
         # symbolic variable that points to the number of errors made on the
         # minibatch given by self.x and self.y
-        self.errors = self.logLayer.errors(self.y)
+        self.errors = self.logLayer.errors(prev_input, self.y)
 
     def pretraining_functions(self, train_set_input, batch_size, k):
         '''Generates a list of functions, for performing one step of
@@ -312,11 +324,11 @@ class DeepBeliefNetworkTrainer(Trainer):
     
     def mean_validation_loss(self):
         """docstring for mean_validation_loss"""
-        return numpy.mean(self.validate_model())
+        return numpy.mean(self.validation_eval_function())
         
     def mean_test_loss(self):
         """docstring for mean_test_loss"""
-        return numpy.mean(self.test_model())
+        return numpy.mean(self.test_eval_function())
 
     def train(self, patience_increase = 2.0, improvement_threshold = 0.995):
         """docstring for train"""
@@ -345,7 +357,7 @@ class DeepBeliefNetworkTrainer(Trainer):
             k = k
         )
 
-        self.train_model, self.validate_model, self.test_model = self.dbn.build_finetune_functions(
+        self.training_function, self.validation_eval_function, self.test_eval_function = self.dbn.build_finetune_functions(
             dataset = self.dataset, 
             batch_size = self.batch_size,
             learning_rate = self.finetune_lr

@@ -64,11 +64,15 @@ class MultilayerPerceptronClassifier(Classifier):
 
     def cost_function(self, inputs, outputs):
         """docstring for cost"""
-        return self.logRegressionLayer.negative_log_likelihood(
-            self.hiddenLayer.output_probabilities_function(inputs), outputs
+        hidden_outputs = self.hiddenLayer.output_probabilities_function(inputs)
+        return (
+            self.logRegressionLayer.negative_log_likelihood(
+                hidden_outputs,
+                outputs
+            )
+            + self.L1_reg * self.L1
+            + self.L2_reg * self.L2_sqr
         )
-        + self.L1_reg * self.L1
-        + self.L2_reg * self.L2_sqr
 
 
     def evaluation_function(self, inputs, outputs):

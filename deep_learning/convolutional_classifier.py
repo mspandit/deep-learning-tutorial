@@ -65,14 +65,18 @@ class ConvolutionalMultilayerPerceptronClassifier(Classifier):
 
     def cost_function(self, inputs, outputs):
         """docstring for cost_function"""
+        prev_outputs = inputs.reshape((self.batch_size, 1, 28, 28))
+        prev_outputs = self.layer0.output_probabilities_function(
+            prev_outputs
+        )
+        prev_outputs = self.layer1.output_probabilities_function(
+            prev_outputs
+        ).flatten(2)
+        prev_outputs = self.layer2.output_probabilities_function(
+            prev_outputs
+        )
         return self.layer3.negative_log_likelihood(
-            self.layer2.output_probabilities_function(
-                self.layer1.output_probabilities_function(
-                    self.layer0.output_probabilities_function(
-                        inputs.reshape((self.batch_size, 1, 28, 28))
-                    )
-                ).flatten(2)
-            ),
+            prev_outputs,
             outputs
         )
         
