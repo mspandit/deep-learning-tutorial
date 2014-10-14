@@ -87,7 +87,6 @@ class LogisticClassifier(object):
 
         # parameters of the model
         self.parameters = [self.weights, self.biases]
-        self.negative_log_likelihood_fn = None
     
     def output_probabilities(self, input):
         """function to compute vector of class-membership probabilities"""
@@ -99,11 +98,11 @@ class LogisticClassifier(object):
 
     def weights_gradient(self, inputs, outputs):
         """docstring for weights_gradient"""
-        return Tensor.grad(cost = self.negative_log_likelihood(inputs, outputs), wrt = self.weights)
+        return Tensor.grad(cost = self.cost_function(inputs, outputs), wrt = self.weights)
         
     def biases_gradient(self, inputs, outputs):
         """docstring for biases_gradient"""
-        return Tensor.grad(cost = self.negative_log_likelihood(inputs, outputs), wrt = self.biases)
+        return Tensor.grad(cost = self.cost_function(inputs, outputs), wrt = self.biases)
         
     def updates(self, inputs, outputs, learning_rate):
         """Specify how to update the parameters of the model as a list of (variable, update expression) pairs."""
@@ -112,36 +111,11 @@ class LogisticClassifier(object):
             (self.biases, self.biases - learning_rate * self.biases_gradient(inputs, outputs))
         ]
     
-    def negative_log_likelihood(self, inputs, outputs):
-        """Return the mean of the negative log-likelihood of the prediction
-        of this model under a given target distribution.
-
-        .. math::
-
-            \frac{1}{|\mathcal{D}|} \mathcal{L} (\theta=\{W,b\}, \mathcal{D}) =
-            \frac{1}{|\mathcal{D}|} \sum_{i=0}^{|\mathcal{D}|} \log(P(Y=y^{(i)}|x^{(i)}, W,b)) \\
-                \ell (\theta=\{W,b\}, \mathcal{D})
-
-        :type outputs: theano.tensor.TensorType
-        :param outputs: corresponds to a vector that gives for each example the
-                  correct label
-
-        Note: we use the mean instead of the sum so that
-              the learning rate is less dependent on the batch size
+    def cost_function(self, inputs, outputs):
         """
-        # outputs.shape[0] is (symbolically) the number of rows in outputs, i.e.,
-        # number of examples (call it n) in the minibatch
-        # Tensor.arange(outputs.shape[0]) is a symbolic vector which will contain
-        # [0,1,2,... n-1] Tensor.log(self.output_probabilities) is a matrix of
-        # Log-Probabilities (call it LP) with one row per example and
-        # one column per class LP[Tensor.arange(outputs.shape[0]),outputs] is a vector
-        # v containing [LP[0,outputs[0]], LP[1,outputs[1]], LP[2,outputs[2]], ...,
-        # LP[n-1,outputs[n-1]]] and Tensor.mean(LP[Tensor.arange(outputs.shape[0]),outputs]) is
-        # the mean (across minibatch examples) of the elements in v,
-        # i.e., the mean log-likelihood across the minibatch.
-        if self.negative_log_likelihood_fn == None:
-            self.negative_log_likelihood_fn = -Tensor.mean(Tensor.log(self.output_probabilities(inputs))[Tensor.arange(outputs.shape[0]), outputs])
-        return self.negative_log_likelihood_fn
+        """
+ 
+        return -Tensor.mean(Tensor.log(self.output_probabilities(inputs))[Tensor.arange(outputs.shape[0]), outputs])
 
     def evaluation_function(self, inputs, outputs):
         """Return a float representing the number of errors in the minibatch

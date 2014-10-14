@@ -146,7 +146,7 @@ class DBN(object):
                 self.sigmoid_layers[i]
                 .output_probabilities_function(prev_input)
             )
-        self.finetune_cost = self.logLayer.negative_log_likelihood(prev_input, self.y)
+        self.finetune_cost = self.logLayer.cost_function(prev_input, self.y)
 
         # compute the gradients with respect to the model parameters
         # symbolic variable that points to the number of errors made on the

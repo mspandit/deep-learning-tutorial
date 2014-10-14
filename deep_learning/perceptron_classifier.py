@@ -66,7 +66,7 @@ class MultilayerPerceptronClassifier(Classifier):
         """docstring for cost"""
         hidden_outputs = self.hiddenLayer.output_probabilities_function(inputs)
         return (
-            self.logRegressionLayer.negative_log_likelihood(
+            self.logRegressionLayer.cost_function(
                 hidden_outputs,
                 outputs
             )

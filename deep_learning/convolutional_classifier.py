@@ -75,7 +75,7 @@ class ConvolutionalMultilayerPerceptronClassifier(Classifier):
         prev_outputs = self.layer2.output_probabilities_function(
             prev_outputs
         )
-        return self.layer3.negative_log_likelihood(
+        return self.layer3.cost_function(
             prev_outputs,
             outputs
         )
