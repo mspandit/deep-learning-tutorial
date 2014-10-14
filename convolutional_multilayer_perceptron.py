@@ -124,16 +124,18 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
             ),
             outputs
         )
-
-        # create a function to compute the mistakes that are made by the model
-        self.test_errors = theano.function(
-            inputs = [index], 
-            outputs = layer3.errors(
+        
+        evaluation_function = layer3.errors(
                 layer2.output_probabilities_function(
                     layer1.output_probabilities_function(layer0.output_probabilities_function(inputs.reshape((self.batch_size, 1, 28, 28)))).flatten(2)
                 ), 
                 outputs
-            ),
+            )
+
+        # create a function to compute the mistakes that are made by the model
+        self.test_errors = theano.function(
+            inputs = [index], 
+            outputs = evaluation_function,
             givens = {
                 inputs: self.dataset.test_set_input[index * self.batch_size: (index + 1) * self.batch_size],
                 outputs: self.dataset.test_set_output[index * self.batch_size: (index + 1) * self.batch_size]
@@ -142,12 +144,7 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
 
         self.validation_errors = theano.function(
             inputs = [index], 
-            outputs = layer3.errors(
-                layer2.output_probabilities_function(
-                    layer1.output_probabilities_function(layer0.output_probabilities_function(inputs.reshape((self.batch_size, 1, 28, 28)))).flatten(2)
-                ),
-                outputs
-            ),
+            outputs = evaluation_function,
             givens = {
                 inputs: self.dataset.valid_set_input[index * self.batch_size: (index + 1) * self.batch_size],
                 outputs: self.dataset.valid_set_output[index * self.batch_size: (index + 1) * self.batch_size]
