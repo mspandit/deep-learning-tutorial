@@ -1,6 +1,6 @@
 import unittest
 
-from logistic_classifier import LogisticClassifierTrainer
+from logistic_trainer import LogisticTrainer
 from perceptron_trainer import MultilayerPerceptronTrainer
 from convolutional_trainer import ConvolutionalMultilayerPerceptronTrainer
 from denoising_autoencoder import DenoisingAutoencoder
@@ -43,8 +43,8 @@ class TestTutorials(unittest.TestCase):
         self.assertEqual(uncorrupt_costs, [149.16503228187111])
         self.assertTrue(corrupt_costs[0] > 173.6649940882978 and corrupt_costs[0] < 173.6649940882979)
         
-    def test_logistic_classifier(self):
-        lc = LogisticClassifierTrainer(self.dataset, batch_size = 2, n_epochs = 1)
+    def test_logistic(self):
+        lc = LogisticTrainer(self.dataset, batch_size = 2, n_epochs = 1)
         lc.initialize()
         epoch_losses, best_validation_loss, best_iter, test_score = lc.train(patience = 5000, patience_increase = 2, improvement_threshold = 0.995)
         self.assertEqual(epoch_losses, [[0.40000000000000002, 49]])
