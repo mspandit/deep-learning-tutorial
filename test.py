@@ -6,7 +6,7 @@ from convolutional_trainer import ConvolutionalMultilayerPerceptronTrainer
 from denoising_autoencoder import DenoisingAutoencoder
 from stacked_denoising_autoencoder import StackedDenoisingAutoencoder
 from restricted_boltzmann_machine import RestrictedBoltzmannMachine
-from deep_belief_network import DeepBeliefNetworkTrainer
+from deep_belief_trainer import DeepBeliefNetworkTrainer
 from data_set import DataSet
 
 class TestTutorials(unittest.TestCase):
