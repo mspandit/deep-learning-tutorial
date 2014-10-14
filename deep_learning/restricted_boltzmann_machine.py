@@ -17,7 +17,7 @@ import os
 
 from theano.tensor.shared_randomstreams import RandomStreams
 
-from utils import tile_raster_images
+from utilities import tile_raster_images
 
 class RBM(object):
     """Restricted Boltzmann Machine (RBM)  """

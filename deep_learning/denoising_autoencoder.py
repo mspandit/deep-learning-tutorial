@@ -42,7 +42,7 @@ import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
-from utils import tile_raster_images
+from utilities import tile_raster_images
 
 import Image
 
