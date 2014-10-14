@@ -86,7 +86,7 @@ class LogisticClassifier(object):
         )
 
         # parameters of the model
-        self.params = [self.weights, self.biases]
+        self.parameters = [self.weights, self.biases]
         self.negative_log_likelihood_fn = None
     
     def output_probabilities(self, input):

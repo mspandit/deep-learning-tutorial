@@ -54,7 +54,7 @@ class PoolingLayer(object):
         self.b = theano.shared(value=b_values, borrow=True)
 
         # store parameters of this layer
-        self.params = [self.W, self.b]
+        self.parameters = [self.W, self.b]
 
     def output_probabilities_function(self, inputs):
         """docstring for output_probabilities_function"""

@@ -9,13 +9,10 @@ class ConvolutionalMultilayerPerceptronClassifier(Classifier):
     """docstring for ConvolutionalMultilayerPerceptronClassifier"""
     def __init__(self, batch_size, nkerns=[20, 50]):
         super(ConvolutionalMultilayerPerceptronClassifier, self).__init__()
+        
         self.nkerns = nkerns
         self.batch_size = batch_size
         rng = numpy.random.RandomState(23455)
-
-        ######################
-        # BUILD ACTUAL MODEL #
-        ######################
 
         # Reshape matrix of rasterized images of shape (self.batch_size,28*28)
         # to a 4D tensor, compatible with our PoolingLayer
@@ -26,9 +23,9 @@ class ConvolutionalMultilayerPerceptronClassifier(Classifier):
         # 4D output tensor is thus of shape (self.batch_size,nkerns[0],12,12)
         self.layer0 = PoolingLayer(
             rng, 
-            image_shape = (self.batch_size, 1, 28, 28),
-            filter_shape = (nkerns[0], 1, 5, 5), 
-            poolsize = (2, 2)
+            image_shape=(self.batch_size, 1, 28, 28),
+            filter_shape=(nkerns[0], 1, 5, 5), 
+            poolsize=(2, 2)
         )
 
         # Construct the second convolutional pooling layer
@@ -37,8 +34,8 @@ class ConvolutionalMultilayerPerceptronClassifier(Classifier):
         # 4D output tensor is thus of shape (nkerns[0],nkerns[1],4,4)
         self.layer1 = PoolingLayer(
             rng, 
-            image_shape = (self.batch_size, nkerns[0], 12, 12),
-            filter_shape = (nkerns[1], nkerns[0], 5, 5), 
+            image_shape=(self.batch_size, nkerns[0], 12, 12),
+            filter_shape=(nkerns[1], nkerns[0], 5, 5), 
             poolsize=(2, 2)
         )
 
@@ -55,10 +52,15 @@ class ConvolutionalMultilayerPerceptronClassifier(Classifier):
         )
 
         # classify the values of the fully-connected sigmoidal layer
-        self.layer3 = LogisticClassifier(n_in = 500, n_out = 10)
+        self.layer3 = LogisticClassifier(n_in=500, n_out=10)
 
         # create a list of all model parameters to be fit by gradient descent
-        self.params = self.layer3.params + self.layer2.parameters + self.layer1.params + self.layer0.params
+        self.parameters = (
+            self.layer3.parameters
+            + self.layer2.parameters
+            + self.layer1.parameters
+            + self.layer0.parameters
+        )
 
 
     def cost_function(self, inputs, outputs):

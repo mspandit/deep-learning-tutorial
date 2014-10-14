@@ -20,7 +20,11 @@ class HiddenLayer(Classifier):
             if self.nonlinear_function == theano.tensor.nnet.sigmoid:
                 weights_values *= 4
 
-            self.weights = theano.shared(value = weights_values, name='name', borrow=True)
+            self.weights = theano.shared(
+                value=weights_values,
+                name='name',
+                borrow=True
+            )
         else:
             self.weights = weights
     
@@ -36,7 +40,15 @@ class HiddenLayer(Classifier):
                 Tensor.dot(inputs, self.weights) + self.biases
             )
 
-    def __init__(self, rng, input_units, output_units, weights = None, biases = None, nonlinear_function = Tensor.tanh):
+    def __init__(
+        self,
+        rng,
+        input_units,
+        output_units,
+        weights=None,
+        biases=None,
+        nonlinear_function=Tensor.tanh
+    ):
         super(HiddenLayer, self).__init__()
 
         self.rng = rng

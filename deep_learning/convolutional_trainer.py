@@ -21,10 +21,6 @@ References:
    http://yann.lecun.com/exdb/publis/pdf/lecun-98.pdf
 
 """
-import cPickle
-import gzip
-import os
-import sys
 import time
 
 import numpy
@@ -40,7 +36,6 @@ from convolutional_classifier import ConvolutionalMultilayerPerceptronClassifier
 from hidden_layer import HiddenLayer
 from pooling_layer import PoolingLayer
 
-
 from data_set import DataSet
 from trainer import Trainer
 
@@ -51,8 +46,12 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
         :type n_epochs: int
         :param n_epochs: maximal number of epochs to run the optimizer
         """
-        super(ConvolutionalMultilayerPerceptronTrainer, self).__init__(dataset, batch_size, n_epochs)
-        
+        super(ConvolutionalMultilayerPerceptronTrainer, self).__init__(
+            dataset,
+            batch_size,
+            n_epochs
+        )
+
 
     def initialize(self, learning_rate=0.1, nkerns=[20,50]):
         """ Demonstrates lenet on MNIST dataset
@@ -67,21 +66,41 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
         :type nkerns: list of ints
         :param nkerns: number of kernels on each layer
         """
-        classifier = ConvolutionalMultilayerPerceptronClassifier(self.batch_size, nkerns)
+        classifier = ConvolutionalMultilayerPerceptronClassifier(
+            self.batch_size,
+            nkerns
+        )
 
         # allocate symbolic variables for the data
-        index = Tensor.lscalar()  # index to a [mini]batch
+        minibatch_index = Tensor.lscalar()  # index to a [mini]batch
         inputs = Tensor.matrix('inputs')
         outputs = Tensor.ivector('outputs')
 
         ishape = (28, 28)  # this is the size of MNIST images
 
         # create a function to compute the mistakes that are made by the model
-        self.test_eval_function = self.compiled_test_function(classifier, index, inputs, outputs)
+        self.test_eval_function = self.compiled_test_function(
+            classifier,
+            minibatch_index,
+            inputs,
+            outputs
+        )
 
-        self.validation_eval_function = self.compiled_validation_function(classifier, index, inputs, outputs)
+        self.validation_eval_function = self.compiled_validation_function(
+            classifier,
+            minibatch_index,
+            inputs,
+            outputs
+        )
 
-        self.training_function = self.compiled_training_function(classifier, index, inputs, outputs, learning_rate)
+        self.training_function = self.compiled_training_function(
+            classifier,
+            minibatch_index,
+            inputs,
+            outputs,
+            learning_rate
+        )
+
 
 if __name__ == '__main__':
     dataset = DataSet()
@@ -91,6 +110,14 @@ if __name__ == '__main__':
     start_time = time.clock()
     epoch_losses, best_validation_loss, best_iter, test_score = lenet5.train()
     end_time = time.clock()
-    print >> sys.stderr, ('The code for file ' + os.path.split(__file__)[1] + ' ran for %.2fm' % ((end_time - start_time) / 60.))
-    print('Best validation score of %f %% obtained at iteration %i, with test performance %f %%' %
-          (best_validation_loss * 100., best_iter + 1, test_score * 100.))
+    print >> sys.stderr, (
+        'The code for file '
+        + os.path.split(__file__)[1] 
+        + ' ran for %.2fm' 
+        % ((end_time - start_time) / 60.)
+    )
+    print(
+        'Best validation score of %f %% obtained at iteration %i, with '
+        'test performance %f %%' 
+        % (best_validation_loss * 100., best_iter + 1, test_score * 100.)
+    )

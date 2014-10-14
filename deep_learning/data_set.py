@@ -7,26 +7,24 @@ import numpy
 
 class DataSet(object):
     """docstring for DataSet"""
-    def __init__(self, filename = 'mnist.pkl.gz'):
+
+
+    def __init__(self, filename='mnist.pkl.gz'):
         super(DataSet, self).__init__()
         self.filename = filename
 
-    def load(self, limit = None):
-        ''' Loads the dataset
 
-        :type dataset: string
-        :param dataset: the path to the dataset (here MNIST)
-        '''
-
-        #############
-        # LOAD DATA #
-        #############
-
+    def load(self, limit=None):
         # Download the MNIST dataset if it is not present
         data_dir, data_file = os.path.split(self.filename)
         if data_dir == "" and not os.path.isfile(self.filename):
             # Check if dataset is in the data directory.
-            new_path = os.path.join(os.path.split(__file__)[0], "..", "data", dataset)
+            new_path = os.path.join(
+                os.path.split(__file__)[0],
+                "..",
+                "data",
+                dataset
+            )
             if os.path.isfile(new_path) or data_file == 'mnist.pkl.gz':
                 self.filename = new_path
 
@@ -53,21 +51,30 @@ class DataSet(object):
         #target to the example with the same index in the input.
 
         def shared_dataset(data_xy, borrow=True):
-            """ Function that loads the dataset into shared variables
+            """ 
+            Function that loads the dataset into shared variables
 
             The reason we store our dataset in shared variables is to allow
             Theano to copy it into the GPU memory (when code is run on GPU).
-            Since copying data into the GPU is slow, copying a minibatch everytime
-            is needed (the default behaviour if the data is not in a shared
-            variable) would lead to a large decrease in performance.
+            Since copying data into the GPU is slow, copying a minibatch
+            everytime is needed (the default behaviour if the data is not in a
+            shared variable) would lead to a large decrease in performance.
             """
             data_x, data_y = data_xy
-            shared_x = theano.shared(numpy.asarray(data_x,
-                                                   dtype=theano.config.floatX),
-                                     borrow=borrow)
-            shared_y = theano.shared(numpy.asarray(data_y,
-                                                   dtype=theano.config.floatX),
-                                     borrow=borrow)
+            shared_x = theano.shared(
+                numpy.asarray(
+                    data_x,
+                    dtype=theano.config.floatX
+                ),
+                borrow=borrow
+            )
+            shared_y = theano.shared(
+                numpy.asarray(
+                    data_y,
+                    dtype=theano.config.floatX
+                ),
+                borrow=borrow
+            )
             # When storing data on the GPU it has to be stored as floats
             # therefore we will store the labels as ``floatX`` as well
             # (``shared_y`` does exactly that). But during our computations
