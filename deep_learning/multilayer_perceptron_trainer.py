@@ -28,21 +28,21 @@ class MultilayerPerceptronTrainer(Trainer):
             n_out=10
         )
 
-        self.test_eval_function = self.initialize_test_function(
+        self.test_eval_function = self.compiled_test_function(
             classifier,
             minibatch_index,
             inputs,
             outputs
         )
         
-        self.validation_eval_function = self.initialize_validation_function(
+        self.validation_eval_function = self.compiled_validation_function(
             classifier,
             minibatch_index,
             inputs,
             outputs
         )
         
-        self.training_function = self.initialize_training_function(
+        self.training_function = self.compiled_training_function(
             classifier,
             minibatch_index,
             inputs,

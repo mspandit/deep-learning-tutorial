@@ -95,11 +95,13 @@ class DBN(object):
             else:
                 layer_input = self.sigmoid_layers[-1].output
 
-            sigmoid_layer = HiddenLayer(rng=numpy_rng,
-                                        input=layer_input,
-                                        n_in=input_size,
-                                        n_out=hidden_layers_sizes[i],
-                                        activation=T.nnet.sigmoid)
+            sigmoid_layer = HiddenLayer(
+                rng=numpy_rng,
+                # input=layer_input,
+                input_units=input_size,
+                output_units=hidden_layers_sizes[i],
+                nonlinear_function=T.nnet.sigmoid
+            )
 
             # add the layer to our list of layers
             self.sigmoid_layers.append(sigmoid_layer)
@@ -109,7 +111,7 @@ class DBN(object):
             # sigmoid_layers are parameters of the DBN. The visible
             # biases in the RBM are parameters of those RBMs, but not
             # of the DBN.
-            self.params.extend(sigmoid_layer.params)
+            self.params.extend(sigmoid_layer.parameters)
 
             # Construct an RBM that shared weights with this layer
             rbm_layer = RBM(

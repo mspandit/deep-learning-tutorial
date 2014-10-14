@@ -43,8 +43,8 @@ class MultilayerPerceptronClassifier(Classifier):
 
         self.hiddenLayer = HiddenLayer(
             rng=rng, 
-            n_in=n_in, 
-            n_out=n_hidden,
+            input_units=n_in, 
+            output_units=n_hidden,
             nonlinear_function=Tensor.tanh
         )
 
@@ -56,7 +56,7 @@ class MultilayerPerceptronClassifier(Classifier):
         self.initialize_l1(L1_reg)
         self.initialize_l2(L2_reg)
 
-        self.params = self.hiddenLayer.params + self.logRegressionLayer.params
+        self.params = self.hiddenLayer.parameters + self.logRegressionLayer.params
     
     def cost_function(self, inputs, outputs):
         """docstring for cost"""

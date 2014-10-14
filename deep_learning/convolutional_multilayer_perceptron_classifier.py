@@ -1,4 +1,9 @@
-
+import numpy
+import theano.tensor as Tensor
+from pooling_layer import PoolingLayer
+from hidden_layer import HiddenLayer
+from classifier import Classifier
+from logistic_classifier import LogisticClassifier
 
 class ConvolutionalMultilayerPerceptronClassifier(Classifier):
     """docstring for ConvolutionalMultilayerPerceptronClassifier"""
@@ -44,8 +49,8 @@ class ConvolutionalMultilayerPerceptronClassifier(Classifier):
         # construct a fully-connected sigmoidal layer
         self.layer2 = HiddenLayer(
             rng, 
-            n_in = nkerns[1] * 4 * 4,
-            n_out = 500, 
+            input_units=nkerns[1] * 4 * 4,
+            output_units=500, 
             nonlinear_function=Tensor.tanh
         )
 
@@ -53,7 +58,7 @@ class ConvolutionalMultilayerPerceptronClassifier(Classifier):
         self.layer3 = LogisticClassifier(n_in = 500, n_out = 10)
 
         # create a list of all model parameters to be fit by gradient descent
-        self.params = self.layer3.params + self.layer2.params + self.layer1.params + self.layer0.params
+        self.params = self.layer3.params + self.layer2.parameters + self.layer1.params + self.layer0.params
 
 
     def cost_function(self, inputs, outputs):

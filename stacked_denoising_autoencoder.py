@@ -134,11 +134,11 @@ class SdA(object):
                 layer_input = self.sigmoid_layers[-1].output
 
             sigmoid_layer = HiddenLayer(
-                rng = numpy_rng,
-                input = layer_input,
-                n_in = input_size,
-                n_out = hidden_layers_sizes[i],
-                activation = T.nnet.sigmoid
+                rng=numpy_rng,
+                # input=layer_input,
+                input_units=input_size,
+                output_units=hidden_layers_sizes[i],
+                nonlinear_function=T.nnet.sigmoid
             )
             # add the layer to our list of layers
             self.sigmoid_layers.append(sigmoid_layer)
@@ -147,7 +147,7 @@ class SdA(object):
             # sigmoid_layers are parameters of the StackedDAA
             # the visible biases in the dA are parameters of those
             # dA, but not the SdA
-            self.params.extend(sigmoid_layer.params)
+            self.params.extend(sigmoid_layer.parameters)
 
             # Construct a denoising autoencoder that shared weights with this
             # layer

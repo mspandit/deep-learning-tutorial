@@ -204,7 +204,7 @@ class LogisticClassifierTrainer(Trainer):
 
         # compiling a Theano function that computes the mistakes that are made by
         # the model on a minibatch
-        self.test_errors = theano.function(
+        self.test_eval_function = theano.function(
             inputs = [index],
             outputs = classifier.errors(inputs, outputs),
             givens = {
@@ -213,7 +213,7 @@ class LogisticClassifierTrainer(Trainer):
             }
         )
 
-        self.validation_errors = theano.function(
+        self.validation_eval_function = theano.function(
             inputs = [index],
             outputs = classifier.errors(inputs, outputs),
             givens = {
@@ -228,7 +228,7 @@ class LogisticClassifierTrainer(Trainer):
 
         # compiling a Theano function `train_model` that updates the parameter of the model based on the rules
         # defined in `updates`
-        self.train_model = theano.function(
+        self.training_function = theano.function(
             inputs = [index],
             updates = classifier.updates(inputs, outputs, learning_rate),
             givens = {

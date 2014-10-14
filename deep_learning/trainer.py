@@ -24,7 +24,7 @@ class Trainer(object):
         while (epoch < self.n_epochs) and (not done_looping):
             epoch = epoch + 1
             for minibatch_index in xrange(n_train_batches):
-                self.train_model(minibatch_index)
+                self.training_function(minibatch_index)
                 iter = (epoch - 1) * n_train_batches + minibatch_index
                 if (iter + 1) % validation_frequency == 0:
                     this_validation_loss = self.mean_validation_loss()
@@ -44,11 +44,11 @@ class Trainer(object):
         
     def mean_validation_loss(self):
         """docstring for mean_validation_loss"""
-        return numpy.mean([self.validation_errors(batch_index) for batch_index in xrange(self.n_valid_batches)])
+        return numpy.mean([self.validation_eval_function(batch_index) for batch_index in xrange(self.n_valid_batches)])
         
     def mean_test_loss(self):
         """docstring for mean_test_loss"""
-        return numpy.mean([self.test_errors(batch_index) for batch_index in xrange(self.n_test_batches)])
+        return numpy.mean([self.test_eval_function(batch_index) for batch_index in xrange(self.n_test_batches)])
 
     def compiled_validation_function(self, classifier, minibatch_index, inputs, outputs):
         """docstring for initialize_validation_function"""
