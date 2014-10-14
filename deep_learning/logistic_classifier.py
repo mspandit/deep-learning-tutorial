@@ -45,8 +45,9 @@ import theano
 import theano.tensor as Tensor
 
 from data_set import DataSet
+from classifier import Classifier
 
-class LogisticClassifier(object):
+class LogisticClassifier(Classifier):
     """Multi-class Logistic Regression Class
 
     The logistic regression is fully described by a weight matrix :math:`W`
@@ -71,6 +72,7 @@ class LogisticClassifier(object):
                       which the labels lie
 
         """
+        super(Classifier, self).__init__()
 
         # initialize with 0 the weights as a matrix of shape (n_in, n_out)
         self.weights = theano.shared(
@@ -88,34 +90,27 @@ class LogisticClassifier(object):
         # parameters of the model
         self.parameters = [self.weights, self.biases]
     
-    def output_probabilities(self, input):
+    def output_probabilities_function(self, input):
         """function to compute vector of class-membership probabilities"""
-        return Tensor.nnet.softmax(Tensor.dot(input, self.weights) + self.biases)
+        return Tensor.nnet.softmax(
+            Tensor.dot(input, self.weights)
+            + self.biases
+        )
         
-    def predicted_output(self, input):
-        """function to compute prediction as class whose probability is maximal"""
-        return Tensor.argmax(self.output_probabilities(input), axis = 1)
-
-    def weights_gradient(self, inputs, outputs):
-        """docstring for weights_gradient"""
-        return Tensor.grad(cost = self.cost_function(inputs, outputs), wrt = self.weights)
-        
-    def biases_gradient(self, inputs, outputs):
-        """docstring for biases_gradient"""
-        return Tensor.grad(cost = self.cost_function(inputs, outputs), wrt = self.biases)
-        
-    def updates(self, inputs, outputs, learning_rate):
-        """Specify how to update the parameters of the model as a list of (variable, update expression) pairs."""
-        return [
-            (self.weights, self.weights - learning_rate * self.weights_gradient(inputs, outputs)),
-            (self.biases, self.biases - learning_rate * self.biases_gradient(inputs, outputs))
-        ]
+    def predicted_output_function(self, input):
+        """
+        function to compute prediction as class whose probability is maximal
+        """
+        return Tensor.argmax(
+            self.output_probabilities_function(input),
+            axis=1
+        )
     
     def cost_function(self, inputs, outputs):
         """
         """
  
-        return -Tensor.mean(Tensor.log(self.output_probabilities(inputs))[Tensor.arange(outputs.shape[0]), outputs])
+        return -Tensor.mean(Tensor.log(self.output_probabilities_function(inputs))[Tensor.arange(outputs.shape[0]), outputs])
 
     def evaluation_function(self, inputs, outputs):
         """Return a float representing the number of errors in the minibatch
@@ -128,13 +123,13 @@ class LogisticClassifier(object):
         """
 
         # check if outputs has same dimension of predicted_output
-        if outputs.ndim != self.predicted_output(inputs).ndim:
+        if outputs.ndim != self.predicted_output_function(inputs).ndim:
             raise TypeError('outputs should have the same shape as self.predicted_output',
-                ('outputs', target.type, 'predicted_output', self.predicted_output(inputs).type))
+                ('outputs', target.type, 'predicted_output', self.predicted_output_function(inputs).type))
         # check if outputs is of the correct datatype
         if outputs.dtype.startswith('int'):
             # the Tensor.neq operator returns a vector of 0s and 1s, where 1
             # represents a mistake in prediction
-            return Tensor.mean(Tensor.neq(self.predicted_output(inputs), outputs))
+            return Tensor.mean(Tensor.neq(self.predicted_output_function(inputs), outputs))
         else:
             raise NotImplementedError()
