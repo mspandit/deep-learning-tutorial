@@ -15,32 +15,76 @@ from theano.tensor.shared_randomstreams import RandomStreams
 from classifier import Classifier
 
 class RestrictedBoltzmannMachine(Classifier):
-    """Restricted Boltzmann Machine (RBM)  """
-    def __init__(self, input=None, n_visible=784, n_hidden=500, \
-        W=None, hbias=None, vbias=None, numpy_rng=None,
-        theano_rng=None):
+    """
+    Restricted Boltzmann Machine (RBM)  
+    """
+
+
+    def initialize_weights(self, numpy_rng, n_hidden, n_visible, weights, name):
+        """docstring for initialize_weights"""
+        if weights is None:
+            # W is initialized with `initial_W` which is uniformely
+            # sampled from -4*sqrt(6./(n_visible+n_hidden)) and
+            # 4*sqrt(6./(n_hidden+n_visible)) the output of uniform if
+            # converted using asarray to dtype theano.config.floatX so
+            # that the code is runable on GPU
+            initial_W = numpy.asarray(
+                self.rng.uniform(
+                    low=-4 * numpy.sqrt(6. / (n_hidden + n_visible)),
+                    high=4 * numpy.sqrt(6. / (n_hidden + n_visible)),
+                    size=(n_visible, n_hidden)
+                ),
+                dtype=theano.config.floatX
+            )
+            # theano shared variables for weights and biases
+            weights = theano.shared(
+                value=initial_W,
+                name=name,
+                borrow=True
+            )
+
+        self.W = weights
+
+
+    def initialize_biases(self, n_visible, n_hidden, hbias, vbias, hname, vname):
+        """docstring for initialize_biases"""
+        if hbias is None:
+            # create shared variable for hidden units bias
+            hbias = theano.shared(
+                value=numpy.zeros(
+                    n_hidden,
+                    dtype=theano.config.floatX
+                ),
+                name=hname,
+                borrow=True
+            )
+        self.hbias = hbias
+
+        if vbias is None:
+            # create shared variable for visible units bias
+            vbias = theano.shared(
+                value=numpy.zeros(
+                    n_visible,
+                    dtype=theano.config.floatX
+                ),
+                name=vname,
+                borrow=True
+            )
+        self.vbias = vbias
+
+
+    def __init__(
+        self,
+        input=None,
+        n_visible=784,
+        n_hidden=500,
+        W=None,
+        hbias=None,
+        vbias=None,
+        numpy_rng=None,
+        theano_rng=None
+    ):
         """
-        RBM constructor. Defines the parameters of the model along with
-        basic operations for inferring hidden from visible (and vice-versa),
-        as well as for performing CD updates.
-
-        :param input: None for standalone RBMs or symbolic variable if RBM is
-        part of a larger graph.
-
-        :param n_visible: number of visible units
-
-        :param n_hidden: number of hidden units
-
-        :param W: None for standalone RBMs or symbolic variable pointing to a
-        shared weight matrix in case RBM is part of a DBN network; in a DBN,
-        the weights are shared between RBMs and layers of a MLP
-
-        :param hbias: None for standalone RBMs or symbolic variable pointing
-        to a shared hidden units bias vector in case RBM is part of a
-        different network
-
-        :param vbias: None for standalone RBMs or a symbolic variable
-        pointing to a shared visible units bias
         """
         super(RestrictedBoltzmannMachine, self).__init__()
         
@@ -50,48 +94,23 @@ class RestrictedBoltzmannMachine(Classifier):
         if numpy_rng is None:
             # create a number generator
             numpy_rng = numpy.random.RandomState(1234)
+        self.rng = numpy_rng
 
         if theano_rng is None:
             theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
 
-        if W is None:
-            # W is initialized with `initial_W` which is uniformely
-            # sampled from -4*sqrt(6./(n_visible+n_hidden)) and
-            # 4*sqrt(6./(n_hidden+n_visible)) the output of uniform if
-            # converted using asarray to dtype theano.config.floatX so
-            # that the code is runable on GPU
-            initial_W = numpy.asarray(numpy_rng.uniform(
-                      low=-4 * numpy.sqrt(6. / (n_hidden + n_visible)),
-                      high=4 * numpy.sqrt(6. / (n_hidden + n_visible)),
-                      size=(n_visible, n_hidden)),
-                      dtype=theano.config.floatX)
-            # theano shared variables for weights and biases
-            W = theano.shared(value=initial_W, name='W', borrow=True)
-
-        if hbias is None:
-            # create shared variable for hidden units bias
-            hbias = theano.shared(value=numpy.zeros(n_hidden,
-                                                    dtype=theano.config.floatX),
-                                  name='hbias', borrow=True)
-
-        if vbias is None:
-            # create shared variable for visible units bias
-            vbias = theano.shared(value=numpy.zeros(n_visible,
-                                                    dtype=theano.config.floatX),
-                                  name='vbias', borrow=True)
+        self.initialize_weights(numpy_rng, n_hidden, n_visible, W, 'rbm_weights')
+        self.initialize_biases(n_visible, n_hidden, hbias, vbias, 'rbm_hbias', 'rbm_vbias')
 
         # initialize input layer for standalone RBM or layer0 of DBN
         self.input = input
         if not input:
             self.input = T.matrix('input')
-
-        self.W = W
-        self.hbias = hbias
-        self.vbias = vbias
         self.theano_rng = theano_rng
+        
         # **** WARNING: It is not a good idea to put things in this list
         # other than shared variables created in this function.
-        self.params = [self.W, self.hbias, self.vbias]
+        self.parameters = [self.W, self.hbias, self.vbias]
 
     def free_energy(self, v_sample):
         ''' Function to compute the free energy '''
@@ -222,10 +241,10 @@ class RestrictedBoltzmannMachine(Classifier):
         cost = T.mean(self.free_energy(self.input)) - T.mean(
             self.free_energy(chain_end))
         # We must not compute the gradient through the gibbs sampling
-        gparams = T.grad(cost, self.params, consider_constant=[chain_end])
+        gparams = T.grad(cost, self.parameters, consider_constant=[chain_end])
 
         # constructs the update dictionary
-        for gparam, param in zip(gparams, self.params):
+        for gparam, param in zip(gparams, self.parameters):
             # make sure that the learning rate is of the right dtype
             updates[param] = param - gparam * T.cast(lr,
                                                     dtype=theano.config.floatX)

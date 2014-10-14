@@ -33,7 +33,7 @@ class RestrictedBoltzmannMachineTrainer(Trainer):
             # go through the training set
             costs = []
             for batch_index in xrange(n_train_batches):
-                costs.append(self.train_rbm(batch_index))
+                costs.append(self.training_function(batch_index))
 
             epoch_costs.append(numpy.mean(costs))
             # print 'Training epoch %d, cost is %f' % (epoch, numpy.mean(mean_cost))
@@ -55,36 +55,66 @@ class RestrictedBoltzmannMachineTrainer(Trainer):
 
             epoch += 1
         return epoch_costs, plotting_time
+
+
+    def compiled_training_function(self, classifier, minibatch_index, inputs, persistent_chain, learning_rate):
+        """docstring for compiled_training_function"""
+
+        # get the cost and the gradient corresponding to one step of CD-15
+        cost, updates = classifier.get_cost_updates(
+            lr=learning_rate,
+            persistent=persistent_chain,
+            k=15
+        )
         
-    def initialize(self, learning_rate=0.1, n_chains=20, n_samples=10, output_folder='rbm_plots', n_hidden=500):
+        return theano.function(
+            [minibatch_index], 
+            cost,
+            updates=updates,
+            givens={
+                inputs: self.dataset.train_set_input[
+                    minibatch_index * self.batch_size:
+                    (minibatch_index + 1) * self.batch_size
+                ]
+            },
+            name = 'train_rbm'
+        )
+
+    def initialize(
+        self,
+        learning_rate=0.1,
+        n_chains=20,
+        n_samples=10,
+        output_folder='rbm_plots',
+        n_hidden=500
+    ):
         """
         """
 
-        # allocate symbolic variables for the data
-        index = Tensor.lscalar()    # index to a [mini]batch
-        x = Tensor.matrix('x')  # the data is presented as rasterized images
+        minibatch_index = Tensor.lscalar()
+        inputs = Tensor.matrix('inputs')
 
         rng = numpy.random.RandomState(123)
         theano_rng = RandomStreams(rng.randint(2 ** 30))
 
         # initialize storage for the persistent chain (state = hidden
         # layer of chain)
-        persistent_chain = theano.shared(numpy.zeros((self.batch_size, n_hidden),
-                                                     dtype=theano.config.floatX),
-                                         borrow=True)
+        persistent_chain = theano.shared(
+            numpy.zeros(
+                (self.batch_size, n_hidden),
+                dtype=theano.config.floatX
+            ),
+            borrow=True
+        )
 
         # construct the RBM class
         self.rbm = RestrictedBoltzmannMachine(
-            input=x,
+            input=inputs,
             n_visible=28 * 28,
             n_hidden=n_hidden,
             numpy_rng=rng,
             theano_rng=theano_rng
         )
-
-        # get the cost and the gradient corresponding to one step of CD-15
-        cost, updates = self.rbm.get_cost_updates(lr=learning_rate,
-                                             persistent=persistent_chain, k=15)
 
         #################################
         #     Training the RBM          #
@@ -95,12 +125,12 @@ class RestrictedBoltzmannMachineTrainer(Trainer):
 
         # it is ok for a theano function to have no output
         # the purpose of train_rbm is solely to update the RBM parameters
-        self.train_rbm = theano.function(
-            [index], 
-            cost,
-            updates = updates,
-            givens = { x: self.dataset.train_set_input[index * self.batch_size : (index + 1) * self.batch_size] },
-            name = 'train_rbm'
+        self.training_function = self.compiled_training_function(
+            self.rbm,
+            minibatch_index,
+            inputs,
+            persistent_chain,
+            learning_rate
         )
 
     def sample(self):
