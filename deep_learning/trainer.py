@@ -8,12 +8,23 @@ class Trainer(object):
         self.dataset = dataset
         self.n_epochs = n_epochs
         self.batch_size = batch_size
-        self.n_valid_batches = self.dataset.valid_set_input.get_value(borrow=True).shape[0] / self.batch_size
-        self.n_test_batches = self.dataset.test_set_input.get_value(borrow=True).shape[0] / self.batch_size
+        self.n_valid_batches = self.dataset.valid_set_input.get_value(
+            borrow=True
+        ).shape[0] / self.batch_size
+        self.n_test_batches = self.dataset.test_set_input.get_value(
+            borrow=True
+        ).shape[0] / self.batch_size
         
-    def train(self, patience = 5000, patience_increase = 2, improvement_threshold = 0.995):
+    def train(
+        self,
+        patience=5000,
+        patience_increase=2,
+        improvement_threshold=0.995
+    ):
         """docstring for train"""
-        n_train_batches = self.dataset.train_set_input.get_value(borrow=True).shape[0] / self.batch_size
+        n_train_batches = self.dataset.train_set_input.get_value(
+            borrow=True
+        ).shape[0] / self.batch_size
         best_validation_loss = numpy.inf
         best_iter = 0
         test_score = 0.
@@ -28,10 +39,16 @@ class Trainer(object):
                 iter = (epoch - 1) * n_train_batches + minibatch_index
                 if (iter + 1) % validation_frequency == 0:
                     this_validation_loss = self.mean_validation_loss()
-                    print 'epoch %d validation error %f%%' % (epoch, this_validation_loss * 100.0)
+                    print (
+                        'epoch %d validation error %f%%'
+                        % (epoch, this_validation_loss * 100.0)
+                    )
                     epoch_losses.append([this_validation_loss, iter])
                     if this_validation_loss < best_validation_loss:
-                        if this_validation_loss < best_validation_loss * improvement_threshold:
+                        if (
+                            this_validation_loss
+                            < best_validation_loss * improvement_threshold
+                        ):
                             patience = max(patience, iter * patience_increase)
                         best_validation_loss = this_validation_loss
                         best_iter = iter
@@ -53,37 +70,79 @@ class Trainer(object):
         
     def mean_test_loss(self):
         """docstring for mean_test_loss"""
-        return numpy.mean([self.test_eval_function(batch_index) for batch_index in xrange(self.n_test_batches)])
+        return numpy.mean(
+            [
+                self.test_eval_function(batch_index) 
+                for batch_index in xrange(self.n_test_batches)
+            ]
+        )
 
-    def compiled_validation_function(self, classifier, minibatch_index, inputs, outputs):
+    def compiled_validation_function(
+        self,
+        classifier,
+        minibatch_index,
+        inputs,
+        outputs
+    ):
         """docstring for initialize_validation_function"""
         return theano.function(
             inputs = [minibatch_index],
             outputs = classifier.evaluation_function(inputs, outputs),
             givens = {
-                inputs: self.dataset.valid_set_input[minibatch_index * self.batch_size:(minibatch_index + 1) * self.batch_size],
-                outputs: self.dataset.valid_set_output[minibatch_index * self.batch_size:(minibatch_index + 1) * self.batch_size]
+                inputs: self.dataset.valid_set_input[
+                    minibatch_index * self.batch_size:
+                    (minibatch_index + 1) * self.batch_size
+                ],
+                outputs: self.dataset.valid_set_output[
+                    minibatch_index * self.batch_size:
+                    (minibatch_index + 1) * self.batch_size
+                ]
             }
         )
 
-    def compiled_test_function(self, classifier, minibatch_index, inputs, outputs):
+    def compiled_test_function(
+        self,
+        classifier,
+        minibatch_index,
+        inputs,
+        outputs
+    ):
         """docstring for initialize_test_function"""
         return theano.function(
             inputs = [minibatch_index],
             outputs = classifier.evaluation_function(inputs, outputs),
             givens = {
-                inputs: self.dataset.test_set_input[minibatch_index * self.batch_size:(minibatch_index + 1) * self.batch_size],
-                outputs: self.dataset.test_set_output[minibatch_index * self.batch_size:(minibatch_index + 1) * self.batch_size]
+                inputs: self.dataset.test_set_input[
+                    minibatch_index * self.batch_size:
+                    (minibatch_index + 1) * self.batch_size
+                ],
+                outputs: self.dataset.test_set_output[
+                    minibatch_index * self.batch_size:
+                    (minibatch_index + 1) * self.batch_size
+                ]
             }
         )
 
-    def compiled_training_function(self, classifier, minibatch_index, inputs, outputs, learning_rate):
+    def compiled_training_function(
+        self,
+        classifier,
+        minibatch_index,
+        inputs,
+        outputs,
+        learning_rate
+    ):
         """docstring for initialize_training_function"""
         return theano.function(
             inputs = [minibatch_index], 
             updates = classifier.updates(inputs, outputs, learning_rate),
             givens = {
-                inputs: self.dataset.train_set_input[minibatch_index * self.batch_size:(minibatch_index + 1) * self.batch_size],
-                outputs: self.dataset.train_set_output[minibatch_index * self.batch_size:(minibatch_index + 1) * self.batch_size]
+                inputs: self.dataset.train_set_input[
+                    minibatch_index * self.batch_size:
+                    (minibatch_index + 1) * self.batch_size
+                ],
+                outputs: self.dataset.train_set_output[
+                    minibatch_index * self.batch_size:
+                    (minibatch_index + 1) * self.batch_size
+                ]
             }
         )

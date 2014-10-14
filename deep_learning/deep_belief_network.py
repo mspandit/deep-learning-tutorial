@@ -15,7 +15,7 @@ from theano.tensor.shared_randomstreams import RandomStreams
 from classifier import Classifier
 from logistic_classifier import LogisticClassifier
 from hidden_layer import HiddenLayer
-from restricted_boltzmann_machine import RBM
+from restricted_boltzmann_machine import RestrictedBoltzmannMachine
 
 
 class DBN(Classifier):
@@ -99,7 +99,7 @@ class DBN(Classifier):
             self.parameters.extend(sigmoid_layer.parameters)
 
             # Construct an RBM that shared weights with this layer
-            rbm_layer = RBM(
+            rbm_layer = RestrictedBoltzmannMachine(
                 numpy_rng = numpy_rng,
                 theano_rng = theano_rng,
                 input = layer_input,

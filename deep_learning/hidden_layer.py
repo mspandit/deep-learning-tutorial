@@ -53,6 +53,15 @@ class HiddenLayer(Classifier):
 
         self.rng = rng
         self.nonlinear_function = nonlinear_function
-        self.initialize_weights(input_units, output_units, weights, 'hidden_layer_weights')
-        self.initialize_biases(output_units, biases, 'hidden_layer_biases')
+        self.initialize_weights(
+            input_units,
+            output_units,
+            weights,
+            'hidden_layer_weights'
+        )
+        self.initialize_biases(
+            output_units,
+            biases,
+            'hidden_layer_biases'
+        )
         self.parameters = [self.weights, self.biases]

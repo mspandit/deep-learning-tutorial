@@ -63,7 +63,10 @@ class LogisticClassifier(Classifier):
 
         # initialize with 0 the weights as a matrix of shape (n_in, n_out)
         self.weights = theano.shared(
-            value = numpy.zeros((input_units, output_units), dtype = theano.config.floatX), 
+            value = numpy.zeros(
+                (input_units, output_units),
+                dtype = theano.config.floatX
+            ),
             name = 'weights', 
             borrow = True
         )
@@ -114,12 +117,21 @@ class LogisticClassifier(Classifier):
 
         # check if outputs has same dimension of predicted_output
         if outputs.ndim != self.predicted_output_function(inputs).ndim:
-            raise TypeError('outputs should have the same shape as self.predicted_output',
-                ('outputs', target.type, 'predicted_output', self.predicted_output_function(inputs).type))
+            raise TypeError(
+                'outputs should have the same shape as self.predicted_output',
+                (
+                    'outputs',
+                    target.type,
+                    'predicted_output',
+                    self.predicted_output_function(inputs).type
+                )
+            )
         # check if outputs is of the correct datatype
         if outputs.dtype.startswith('int'):
             # the Tensor.neq operator returns a vector of 0s and 1s, where 1
             # represents a mistake in prediction
-            return Tensor.mean(Tensor.neq(self.predicted_output_function(inputs), outputs))
+            return Tensor.mean(
+                Tensor.neq(self.predicted_output_function(inputs), outputs)
+            )
         else:
             raise NotImplementedError()

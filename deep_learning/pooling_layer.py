@@ -67,8 +67,11 @@ class PoolingLayer(object):
                 filter_shape=self.filter_shape, image_shape=self.image_shape)
 
         # downsample each feature map individually, using maxpooling
-        pooled_out = downsample.max_pool_2d(input=conv_out,
-                                            ds=self.pool_size, ignore_border=True)
+        pooled_out = downsample.max_pool_2d(
+            input=conv_out,
+            ds=self.pool_size,
+            ignore_border=True
+        )
 
         # add the bias term. Since the bias is a vector (1D array), we first
         # reshape it to a tensor of shape (1,n_filters,1,1). Each bias will

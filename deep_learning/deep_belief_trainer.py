@@ -30,13 +30,19 @@ class DeepBeliefNetworkTrainer(Trainer):
         :type batch_size: int
         :param batch_size: the size of a minibatch
         """
-        super(DeepBeliefNetworkTrainer, self).__init__(dataset, batch_size, training_epochs)
+        super(DeepBeliefNetworkTrainer, self).__init__(
+            dataset,
+            batch_size,
+            training_epochs
+        )
         self.pretraining_epochs = pretraining_epochs
         self.pretrain_lr = pretrain_lr
         self.finetune_lr = finetune_lr
 
         # compute number of minibatches for training, validation and testing
-        self.n_train_batches = self.dataset.train_set_input.get_value(borrow=True).shape[0] / self.batch_size
+        self.n_train_batches = self.dataset.train_set_input.get_value(
+            borrow=True
+        ).shape[0] / self.batch_size
         
     def pretrain(self):
         """TODO: Factor this into Trainer."""
@@ -63,11 +69,17 @@ class DeepBeliefNetworkTrainer(Trainer):
     
         return layer_epoch_costs
 
+
     def train(self, patience_increase = 2.0, improvement_threshold = 0.995):
         """docstring for train"""
         # early-stopping parameters
         patience = 4 * self.n_train_batches  # look as this many examples regardless
-        return super(DeepBeliefNetworkTrainer, self).train(patience, patience_increase, improvement_threshold)
+        return super(DeepBeliefNetworkTrainer, self).train(
+            patience,
+            patience_increase,
+            improvement_threshold
+        )
+
 
     def initialize(self, k = 1):
         """
@@ -89,19 +101,36 @@ class DeepBeliefNetworkTrainer(Trainer):
             n_outs=10
         )
 
+        minibatch_index = Tensor.lscalar()
+        inputs = Tensor.matrix('inputs')
+        outputs = Tensor.ivector('outputs')
+
         self.pretraining_fns = self.dbn.pretraining_functions(
             train_set_input = self.dataset.train_set_input,
             batch_size = self.batch_size,
             k = k
         )
 
-        minibatch_index = Tensor.lscalar()
-        inputs = Tensor.matrix('inputs')
-        outputs = Tensor.ivector('outputs')
+        self.training_function = self.compiled_training_function(
+            self.dbn,
+            minibatch_index,
+            inputs,
+            outputs,
+            self.finetune_lr
+        )
+        self.validation_eval_function = self.compiled_validation_function(
+            self.dbn,
+            minibatch_index,
+            inputs,
+            outputs
+        )
+        self.test_eval_function = self.compiled_test_function(
+            self.dbn,
+            minibatch_index, 
+            inputs,
+            outputs
+        )
 
-        self.training_function = self.compiled_training_function(self.dbn, minibatch_index, inputs, outputs, self.finetune_lr)
-        self.validation_eval_function = self.compiled_validation_function(self.dbn, minibatch_index, inputs, outputs)
-        self.test_eval_function = self.compiled_test_function(self.dbn, minibatch_index, inputs, outputs)
 
 from data_set import DataSet
 

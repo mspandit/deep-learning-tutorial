@@ -5,7 +5,7 @@ from perceptron_trainer import MultilayerPerceptronTrainer
 from convolutional_trainer import ConvolutionalMultilayerPerceptronTrainer
 from denoising_autoencoder import DenoisingAutoencoder
 from stacked_denoising_autoencoder import StackedDenoisingAutoencoder
-from restricted_boltzmann_machine import RestrictedBoltzmannMachine
+from restricted_boltzmann_machine_trainer import RestrictedBoltzmannMachineTrainer
 from deep_belief_trainer import DeepBeliefNetworkTrainer
 from data_set import DataSet
 
@@ -58,7 +58,7 @@ class TestTutorials(unittest.TestCase):
         self.assertEqual(test_score, 0.52)
         
     def test_restricted_boltzmann_machine(self):
-        rbm = RestrictedBoltzmannMachine(self.dataset, training_epochs = 1, batch_size = 2)
+        rbm = RestrictedBoltzmannMachineTrainer(self.dataset, training_epochs = 1, batch_size = 2)
         rbm.initialize(n_chains = 2, n_samples = 2, n_hidden = 5)
         epoch_costs, plotting_time = rbm.train()
         self.assertEqual(epoch_costs, [-174.86070176730175])

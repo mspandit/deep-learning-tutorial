@@ -21,7 +21,6 @@ References:
    http://yann.lecun.com/exdb/publis/pdf/lecun-98.pdf
 
 """
-import time
 
 import numpy
 
@@ -36,7 +35,6 @@ from convolutional_classifier import ConvolutionalMultilayerPerceptronClassifier
 from hidden_layer import HiddenLayer
 from pooling_layer import PoolingLayer
 
-from data_set import DataSet
 from trainer import Trainer
 
 
@@ -104,6 +102,9 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
             learning_rate
         )
 
+
+import time
+from data_set import DataSet
 
 if __name__ == '__main__':
     dataset = DataSet()
