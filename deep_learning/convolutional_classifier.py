@@ -7,7 +7,11 @@ from logistic_classifier import LogisticClassifier
 
 class ConvolutionalMultilayerPerceptronClassifier(Classifier):
     """docstring for ConvolutionalMultilayerPerceptronClassifier"""
+
+
     def __init__(self, batch_size, nkerns=[20, 50]):
+        """
+        """
         super(ConvolutionalMultilayerPerceptronClassifier, self).__init__()
         
         self.nkerns = nkerns
@@ -79,7 +83,8 @@ class ConvolutionalMultilayerPerceptronClassifier(Classifier):
             prev_outputs,
             outputs
         )
-        
+
+
     def evaluation_function(self, inputs, outputs):
         """docstring for evaluation_function"""
         return self.layer3.evaluation_function(

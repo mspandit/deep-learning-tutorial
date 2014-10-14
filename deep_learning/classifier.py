@@ -26,7 +26,7 @@ class Classifier(object):
         else:
             self.biases = biases
 
-        
+
     def params_gradient(self, inputs, outputs):
         """
         compute the gradient of cost with respect to theta (stored in params).
@@ -37,7 +37,8 @@ class Classifier(object):
             Tensor.grad(self.cost_function(inputs, outputs), param) 
             for param in self.parameters
         ]
-        
+
+
     def updates(self, inputs, outputs, learning_rate):
         """
         specify how to update the parameters of the model as a list of

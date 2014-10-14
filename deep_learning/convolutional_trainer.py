@@ -39,8 +39,11 @@ from pooling_layer import PoolingLayer
 from data_set import DataSet
 from trainer import Trainer
 
+
 class ConvolutionalMultilayerPerceptronTrainer(Trainer):
     """docstring for ConvolutionalMultilayerPerceptronTrainer"""
+
+
     def __init__(self, dataset, n_epochs = 200, batch_size = 500):
         """
         :type n_epochs: int

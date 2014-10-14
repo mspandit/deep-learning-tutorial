@@ -80,23 +80,21 @@ class LogisticClassifier(Classifier):
             name = 'weights', 
             borrow = True
         )
-        # initialize the baises as a vector of n_out 0s
-        self.biases = theano.shared(
-            value = numpy.zeros((n_out,), dtype = theano.config.floatX), 
-            name = 'biases', 
-            borrow = True
-        )
+        
+        self.initialize_biases(n_out, None, 'logistic_biases')
 
         # parameters of the model
         self.parameters = [self.weights, self.biases]
-    
+
+
     def output_probabilities_function(self, input):
         """function to compute vector of class-membership probabilities"""
         return Tensor.nnet.softmax(
             Tensor.dot(input, self.weights)
             + self.biases
         )
-        
+
+
     def predicted_output_function(self, input):
         """
         function to compute prediction as class whose probability is maximal
@@ -105,12 +103,17 @@ class LogisticClassifier(Classifier):
             self.output_probabilities_function(input),
             axis=1
         )
-    
+
+
     def cost_function(self, inputs, outputs):
         """
         """
  
-        return -Tensor.mean(Tensor.log(self.output_probabilities_function(inputs))[Tensor.arange(outputs.shape[0]), outputs])
+        return -Tensor.mean(
+            Tensor.log(
+                self.output_probabilities_function(inputs)
+            )[Tensor.arange(outputs.shape[0]), outputs])
+
 
     def evaluation_function(self, inputs, outputs):
         """Return a float representing the number of errors in the minibatch

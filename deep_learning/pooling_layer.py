@@ -59,6 +59,7 @@ class PoolingLayer(object):
         # store parameters of this layer
         self.parameters = [self.W, self.b]
 
+
     def output_probabilities_function(self, inputs):
         """docstring for output_probabilities_function"""
         # convolve input feature maps with filters
