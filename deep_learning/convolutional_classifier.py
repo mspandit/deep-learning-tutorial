@@ -82,7 +82,7 @@ class ConvolutionalMultilayerPerceptronClassifier(Classifier):
         
     def evaluation_function(self, inputs, outputs):
         """docstring for evaluation_function"""
-        return self.layer3.errors(
+        return self.layer3.evaluation_function(
             self.layer2.output_probabilities_function(
                 self.layer1.output_probabilities_function(
                     self.layer0.output_probabilities_function(

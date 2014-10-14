@@ -77,4 +77,4 @@ class MultilayerPerceptronClassifier(Classifier):
 
     def evaluation_function(self, inputs, outputs):
         """docstring for errors"""
-        return self.logRegressionLayer.errors(self.hiddenLayer.output_probabilities_function(inputs), outputs)
+        return self.logRegressionLayer.evaluation_function(self.hiddenLayer.output_probabilities_function(inputs), outputs)

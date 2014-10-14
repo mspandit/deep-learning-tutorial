@@ -143,7 +143,7 @@ class LogisticClassifier(object):
             self.negative_log_likelihood_fn = -Tensor.mean(Tensor.log(self.output_probabilities(inputs))[Tensor.arange(outputs.shape[0]), outputs])
         return self.negative_log_likelihood_fn
 
-    def errors(self, inputs, outputs):
+    def evaluation_function(self, inputs, outputs):
         """Return a float representing the number of errors in the minibatch
         over the total number of examples of the minibatch ; zero one
         loss over the size of the minibatch

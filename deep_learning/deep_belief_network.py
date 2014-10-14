@@ -151,7 +151,7 @@ class DBN(object):
         # compute the gradients with respect to the model parameters
         # symbolic variable that points to the number of errors made on the
         # minibatch given by self.x and self.y
-        self.errors = self.logLayer.errors(prev_input, self.y)
+        self.errors = self.logLayer.evaluation_function(prev_input, self.y)
 
     def pretraining_functions(self, train_set_input, batch_size, k):
         '''Generates a list of functions, for performing one step of
