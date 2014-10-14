@@ -6,10 +6,17 @@ from perceptron_classifier import MultilayerPerceptronClassifier
 
 class MultilayerPerceptronTrainer(Trainer):
     """docstring for MultilayerPerceptron"""
+
+
     def __init__(self, dataset, n_epochs = 1000, batch_size = 20):
         """
         """
-        super(MultilayerPerceptronTrainer, self).__init__(dataset, batch_size, n_epochs)
+        super(MultilayerPerceptronTrainer, self).__init__(
+            dataset,
+            batch_size,
+            n_epochs
+        )
+
 
     def initialize(self, learning_rate=0.01, n_hidden=500):
         """
@@ -59,7 +66,11 @@ if __name__ == '__main__':
     mlp = MultilayerPerceptronTrainer(dataset)
     mlp.initialize()
     start_time = time.clock()
-    epoch_losses, best_validation_loss, best_iter, test_score = mlp.train(patience = 10000, patience_increase = 2, improvement_threshold = 0.995)
+    epoch_losses, best_validation_loss, best_iter, test_score = mlp.train(
+        patience=10000,
+        patience_increase=2,
+        improvement_threshold=0.995
+    )
     end_time = time.clock()
     print >> sys.stderr, ('The code for file ' +
                           os.path.split(__file__)[1] +
