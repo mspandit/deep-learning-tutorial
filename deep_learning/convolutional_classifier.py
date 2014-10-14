@@ -56,7 +56,7 @@ class ConvolutionalMultilayerPerceptronClassifier(Classifier):
         )
 
         # classify the values of the fully-connected sigmoidal layer
-        self.layer3 = LogisticClassifier(n_in=500, n_out=10)
+        self.layer3 = LogisticClassifier(input_units=500, output_units=10)
 
         # create a list of all model parameters to be fit by gradient descent
         self.parameters = (

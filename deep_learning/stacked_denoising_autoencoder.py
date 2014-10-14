@@ -167,9 +167,8 @@ class SdA(object):
 
         # We now need to add a logistic layer on top of the MLP
         self.logLayer = LogisticClassifier(
-            # input=self.sigmoid_layers[-1].output_probabilities_function(layer_input),
-            n_in=hidden_layers_sizes[-1], 
-            n_out=n_outs
+            input_units=hidden_layers_sizes[-1], 
+            output_units=n_outs
         )
 
         self.params.extend(self.logLayer.parameters)

@@ -49,8 +49,8 @@ class MultilayerPerceptronClassifier(Classifier):
         )
 
         self.logRegressionLayer = LogisticClassifier(
-            n_in=n_hidden,
-            n_out=n_out
+            input_units=n_hidden,
+            output_units=n_out
         )
 
         self.initialize_l1(L1_reg)

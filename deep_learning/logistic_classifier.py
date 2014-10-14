@@ -56,32 +56,19 @@ class LogisticClassifier(Classifier):
     determine a class membership probability.
     """
 
-    def __init__(self, n_in, n_out):
-        """ Initialize the parameters of the logistic regression
-
-        :type input: theano.tensor.TensorType
-        :param input: symbolic variable that describes the input of the
-                      architecture (one minibatch)
-
-        :type n_in: int
-        :param n_in: number of input units, the dimension of the space in
-                     which the datapoints lie
-
-        :type n_out: int
-        :param n_out: number of output units, the dimension of the space in
-                      which the labels lie
-
+    def __init__(self, input_units, output_units):
+        """
         """
         super(Classifier, self).__init__()
 
         # initialize with 0 the weights as a matrix of shape (n_in, n_out)
         self.weights = theano.shared(
-            value = numpy.zeros((n_in, n_out), dtype = theano.config.floatX), 
+            value = numpy.zeros((input_units, output_units), dtype = theano.config.floatX), 
             name = 'weights', 
             borrow = True
         )
         
-        self.initialize_biases(n_out, None, 'logistic_biases')
+        self.initialize_biases(output_units, None, 'logistic_biases')
 
         # parameters of the model
         self.parameters = [self.weights, self.biases]

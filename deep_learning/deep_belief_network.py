@@ -31,25 +31,7 @@ class DBN(Classifier):
 
     def __init__(self, numpy_rng, theano_rng=None, n_ins=784,
                  hidden_layers_sizes=[500, 500], n_outs=10):
-        """This class is made to support a variable number of layers.
-
-        :type numpy_rng: numpy.random.RandomState
-        :param numpy_rng: numpy random number generator used to draw initial
-                    weights
-
-        :type theano_rng: theano.tensor.shared_randomstreams.RandomStreams
-        :param theano_rng: Theano random generator; if None is given one is
-                           generated based on a seed drawn from `rng`
-
-        :type n_ins: int
-        :param n_ins: dimension of the input to the DBN
-
-        :type hidden_layers_sizes: list of ints
-        :param hidden_layers_sizes: intermediate layers size, must contain
-                               at least one value
-
-        :type n_outs: int
-        :param n_outs: dimension of the output of the network
+        """
         """
         super(DBN, self).__init__()
         
@@ -64,9 +46,8 @@ class DBN(Classifier):
             theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
 
         # allocate symbolic variables for the data
-        self.x = T.matrix('x')  # the data is presented as rasterized images
-        self.y = T.ivector('y')  # the labels are presented as 1D vector
-                                 # of [int] labels
+        self.inputs = T.matrix('inputs')
+        self.outputs = T.ivector('outputs')
 
         # The DBN is an MLP, for which all weights of intermediate
         # layers are shared with a different RBM.  We will first
@@ -93,7 +74,7 @@ class DBN(Classifier):
             # hidden layer below or the input of the DBN if you are on
             # the first layer
             if i == 0:
-                layer_input = self.x
+                layer_input = self.inputs
             else:
                 layer_input = (
                     self.sigmoid_layers[-1]
@@ -102,7 +83,6 @@ class DBN(Classifier):
 
             sigmoid_layer = HiddenLayer(
                 rng=numpy_rng,
-                # input=layer_input,
                 input_units=input_size,
                 output_units=hidden_layers_sizes[i],
                 nonlinear_function=T.nnet.sigmoid
@@ -132,9 +112,8 @@ class DBN(Classifier):
 
         # We now need to add a logistic layer on top of the MLP
         self.logLayer = LogisticClassifier(
-            # input=self.sigmoid_layers[-1].output_probabilities_function(layer_input),
-            n_in=hidden_layers_sizes[-1],
-            n_out=n_outs)
+            input_units=hidden_layers_sizes[-1],
+            output_units=n_outs)
         self.parameters.extend(self.logLayer.parameters)
 
 
@@ -205,12 +184,12 @@ class DBN(Classifier):
                                                  persistent=None, k=k)
 
             # compile the theano function
-            fn = theano.function(inputs=[index,
-                            theano.Param(learning_rate, default=0.1)],
-                                 outputs=cost,
-                                 updates=updates,
-                                 givens={self.x:
-                                    train_set_input[batch_begin:batch_end]})
+            fn = theano.function(
+                inputs=[index, theano.Param(learning_rate, default=0.1)],
+                outputs=cost,
+                updates=updates,
+                givens={self.inputs: train_set_input[batch_begin: batch_end]}
+            )
             # append `fn` to the list of functions
             pretrain_fns.append(fn)
 
