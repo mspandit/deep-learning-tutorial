@@ -50,7 +50,7 @@ class Trainer(object):
         """docstring for mean_test_loss"""
         return numpy.mean([self.test_errors(batch_index) for batch_index in xrange(self.n_test_batches)])
 
-    def initialize_validation_function(self, classifier, minibatch_index, inputs, outputs):
+    def compiled_validation_function(self, classifier, minibatch_index, inputs, outputs):
         """docstring for initialize_validation_function"""
         return theano.function(
             inputs = [minibatch_index],
@@ -61,7 +61,7 @@ class Trainer(object):
             }
         )
 
-    def initialize_test_function(self, classifier, minibatch_index, inputs, outputs):
+    def compiled_test_function(self, classifier, minibatch_index, inputs, outputs):
         """docstring for initialize_test_function"""
         return theano.function(
             inputs = [minibatch_index],
@@ -72,7 +72,7 @@ class Trainer(object):
             }
         )
 
-    def initialize_training_function(self, classifier, minibatch_index, inputs, outputs, learning_rate):
+    def compiled_training_function(self, classifier, minibatch_index, inputs, outputs, learning_rate):
         """docstring for initialize_training_function"""
         return theano.function(
             inputs = [minibatch_index], 

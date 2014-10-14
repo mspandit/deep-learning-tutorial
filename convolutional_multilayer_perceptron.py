@@ -159,39 +159,11 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
         ishape = (28, 28)  # this is the size of MNIST images
 
         # create a function to compute the mistakes that are made by the model
-        self.test_errors = theano.function(
-            inputs = [index], 
-            outputs = classifier.evaluation_function(inputs, outputs),
-            givens = {
-                inputs: self.dataset.test_set_input[index * self.batch_size: (index + 1) * self.batch_size],
-                outputs: self.dataset.test_set_output[index * self.batch_size: (index + 1) * self.batch_size]
-            }
-        )
+        self.test_errors = self.compiled_test_function(classifier, index, inputs, outputs)
 
-        self.validation_errors = theano.function(
-            inputs = [index], 
-            outputs = classifier.evaluation_function(inputs, outputs),
-            givens = {
-                inputs: self.dataset.valid_set_input[index * self.batch_size: (index + 1) * self.batch_size],
-                outputs: self.dataset.valid_set_output[index * self.batch_size: (index + 1) * self.batch_size]
-            }
-        )
+        self.validation_errors = self.compiled_validation_function(classifier, index, inputs, outputs)
 
-        # train_model is a function that updates the model parameters by
-        # SGD Since this model has many parameters, it would be tedious to
-        # manually create an update rule for each model parameter. We thus
-        # create the updates list by automatically looping over all
-        # (params[i],grads[i]) pairs.
-        updates = [(param_i, param_i - learning_rate * grad_i) for param_i, grad_i in zip(classifier.params, Tensor.grad(classifier.cost_function(inputs, outputs), classifier.params))]
-
-        self.train_model = theano.function(
-            inputs = [index], 
-            updates = updates,
-            givens = {
-                inputs: self.dataset.train_set_input[index * self.batch_size: (index + 1) * self.batch_size],
-                outputs: self.dataset.train_set_output[index * self.batch_size: (index + 1) * self.batch_size]
-            }
-        )
+        self.train_model = self.compiled_training_function(classifier, index, inputs, outputs, learning_rate)
 
 if __name__ == '__main__':
     dataset = DataSet()

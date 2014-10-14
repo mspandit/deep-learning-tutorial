@@ -28,5 +28,11 @@ class Classifier(object):
         same length, zip generates a list C of same size, where each element
         is a pair formed from the two lists :
            C = [(a1, b1), (a2, b2), (a3, b3), (a4, b4)]
+
+        train_model is a function that updates the model parameters by
+        SGD Since this model has many parameters, it would be tedious to
+        manually create an update rule for each model parameter. We thus
+        create the updates list by automatically looping over all
+        (params[i],grads[i]) pairs.
         """
         return [(param, param - learning_rate * gparam) for param, gparam in zip(self.params, self.params_gradient(inputs, outputs))]
