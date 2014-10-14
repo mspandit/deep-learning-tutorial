@@ -36,7 +36,7 @@ from theano.tensor.nnet import conv
 
 from classifier import Classifier
 from logistic_classifier import LogisticClassifier
-from convolutional_multilayer_perceptron_classifier import ConvolutionalMultilayerPerceptronClassifier
+from convolutional_classifier import ConvolutionalMultilayerPerceptronClassifier
 from hidden_layer import HiddenLayer
 from pooling_layer import PoolingLayer
 
