@@ -34,6 +34,7 @@ import theano.tensor as Tensor
 from theano.tensor.signal import downsample
 from theano.tensor.nnet import conv
 
+from classifier import Classifier
 from logistic_classifier import LogisticClassifier
 from hidden_layer import HiddenLayer
 from pooling_layer import PoolingLayer
@@ -42,36 +43,14 @@ from pooling_layer import PoolingLayer
 from data_set import DataSet
 from trainer import Trainer
 
-class ConvolutionalMultilayerPerceptronTrainer(Trainer):
-    """docstring for ConvolutionalMultilayerPerceptronTrainer"""
-    def __init__(self, dataset, n_epochs = 200, batch_size = 500):
-        """
-        :type n_epochs: int
-        :param n_epochs: maximal number of epochs to run the optimizer
-        """
-        super(ConvolutionalMultilayerPerceptronTrainer, self).__init__(dataset, batch_size, n_epochs)
-        
-    def initialize(self, learning_rate=0.1, nkerns=[20, 50]):
-        """ Demonstrates lenet on MNIST dataset
 
-        :type learning_rate: float
-        :param learning_rate: learning rate used (factor for the stochastic
-                              gradient)
-
-        :type n_epochs: int
-        :param n_epochs: maximal number of epochs to run the optimizer
-
-        :type nkerns: list of ints
-        :param nkerns: number of kernels on each layer
-        """
+class ConvolutionalMultilayerPerceptronClassifier(Classifier):
+    """docstring for ConvolutionalMultilayerPerceptronClassifier"""
+    def __init__(self, batch_size, nkerns=[20, 50]):
+        super(ConvolutionalMultilayerPerceptronClassifier, self).__init__()
+        self.nkerns = nkerns
+        self.batch_size = batch_size
         rng = numpy.random.RandomState(23455)
-
-        # allocate symbolic variables for the data
-        index = Tensor.lscalar()  # index to a [mini]batch
-        inputs = Tensor.matrix('inputs')
-        outputs = Tensor.ivector('outputs')
-
-        ishape = (28, 28)  # this is the size of MNIST images
 
         ######################
         # BUILD ACTUAL MODEL #
@@ -84,7 +63,7 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
         # filtering reduces the image size to (28-5+1,28-5+1)=(24,24)
         # maxpooling reduces this further to (24/2,24/2) = (12,12)
         # 4D output tensor is thus of shape (self.batch_size,nkerns[0],12,12)
-        layer0 = PoolingLayer(
+        self.layer0 = PoolingLayer(
             rng, 
             image_shape = (self.batch_size, 1, 28, 28),
             filter_shape = (nkerns[0], 1, 5, 5), 
@@ -95,7 +74,7 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
         # filtering reduces the image size to (12-5+1,12-5+1)=(8,8)
         # maxpooling reduces this further to (8/2,8/2) = (4,4)
         # 4D output tensor is thus of shape (nkerns[0],nkerns[1],4,4)
-        layer1 = PoolingLayer(
+        self.layer1 = PoolingLayer(
             rng, 
             image_shape = (self.batch_size, nkerns[0], 12, 12),
             filter_shape = (nkerns[1], nkerns[0], 5, 5), 
@@ -107,7 +86,7 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
         # This will generate a matrix of shape (20,32*4*4) = (20,512)
 
         # construct a fully-connected sigmoidal layer
-        layer2 = HiddenLayer(
+        self.layer2 = HiddenLayer(
             rng, 
             n_in = nkerns[1] * 4 * 4,
             n_out = 500, 
@@ -115,27 +94,74 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
         )
 
         # classify the values of the fully-connected sigmoidal layer
-        layer3 = LogisticClassifier(n_in = 500, n_out = 10)
+        self.layer3 = LogisticClassifier(n_in = 500, n_out = 10)
 
-        # the cost we minimize during training is the NLL of the model
-        cost = layer3.negative_log_likelihood(
-            layer2.output_probabilities_function(
-                layer1.output_probabilities_function(layer0.output_probabilities_function(inputs.reshape((self.batch_size, 1, 28, 28)))).flatten(2)
+        # create a list of all model parameters to be fit by gradient descent
+        self.params = self.layer3.params + self.layer2.params + self.layer1.params + self.layer0.params
+
+
+    def cost_function(self, inputs, outputs):
+        """docstring for cost_function"""
+        return self.layer3.negative_log_likelihood(
+            self.layer2.output_probabilities_function(
+                self.layer1.output_probabilities_function(
+                    self.layer0.output_probabilities_function(
+                        inputs.reshape((self.batch_size, 1, 28, 28))
+                    )
+                ).flatten(2)
             ),
             outputs
         )
         
-        evaluation_function = layer3.errors(
-                layer2.output_probabilities_function(
-                    layer1.output_probabilities_function(layer0.output_probabilities_function(inputs.reshape((self.batch_size, 1, 28, 28)))).flatten(2)
-                ), 
-                outputs
-            )
+    def evaluation_function(self, inputs, outputs):
+        """docstring for evaluation_function"""
+        return self.layer3.errors(
+            self.layer2.output_probabilities_function(
+                self.layer1.output_probabilities_function(
+                    self.layer0.output_probabilities_function(
+                        inputs.reshape((self.batch_size, 1, 28, 28))
+                    )
+                ).flatten(2)
+            ), 
+            outputs
+        )
+
+class ConvolutionalMultilayerPerceptronTrainer(Trainer):
+    """docstring for ConvolutionalMultilayerPerceptronTrainer"""
+    def __init__(self, dataset, n_epochs = 200, batch_size = 500):
+        """
+        :type n_epochs: int
+        :param n_epochs: maximal number of epochs to run the optimizer
+        """
+        super(ConvolutionalMultilayerPerceptronTrainer, self).__init__(dataset, batch_size, n_epochs)
+        
+
+    def initialize(self, learning_rate=0.1, nkerns=[20,50]):
+        """ Demonstrates lenet on MNIST dataset
+
+        :type learning_rate: float
+        :param learning_rate: learning rate used (factor for the stochastic
+                              gradient)
+
+        :type n_epochs: int
+        :param n_epochs: maximal number of epochs to run the optimizer
+
+        :type nkerns: list of ints
+        :param nkerns: number of kernels on each layer
+        """
+        classifier = ConvolutionalMultilayerPerceptronClassifier(self.batch_size, nkerns)
+
+        # allocate symbolic variables for the data
+        index = Tensor.lscalar()  # index to a [mini]batch
+        inputs = Tensor.matrix('inputs')
+        outputs = Tensor.ivector('outputs')
+
+        ishape = (28, 28)  # this is the size of MNIST images
 
         # create a function to compute the mistakes that are made by the model
         self.test_errors = theano.function(
             inputs = [index], 
-            outputs = evaluation_function,
+            outputs = classifier.evaluation_function(inputs, outputs),
             givens = {
                 inputs: self.dataset.test_set_input[index * self.batch_size: (index + 1) * self.batch_size],
                 outputs: self.dataset.test_set_output[index * self.batch_size: (index + 1) * self.batch_size]
@@ -144,22 +170,19 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
 
         self.validation_errors = theano.function(
             inputs = [index], 
-            outputs = evaluation_function,
+            outputs = classifier.evaluation_function(inputs, outputs),
             givens = {
                 inputs: self.dataset.valid_set_input[index * self.batch_size: (index + 1) * self.batch_size],
                 outputs: self.dataset.valid_set_output[index * self.batch_size: (index + 1) * self.batch_size]
             }
         )
 
-        # create a list of all model parameters to be fit by gradient descent
-        params = layer3.params + layer2.params + layer1.params + layer0.params
-
         # train_model is a function that updates the model parameters by
         # SGD Since this model has many parameters, it would be tedious to
         # manually create an update rule for each model parameter. We thus
         # create the updates list by automatically looping over all
         # (params[i],grads[i]) pairs.
-        updates = [(param_i, param_i - learning_rate * grad_i) for param_i, grad_i in zip(params, Tensor.grad(cost, params))]
+        updates = [(param_i, param_i - learning_rate * grad_i) for param_i, grad_i in zip(classifier.params, Tensor.grad(classifier.cost_function(inputs, outputs), classifier.params))]
 
         self.train_model = theano.function(
             inputs = [index], 
