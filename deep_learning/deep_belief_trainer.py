@@ -1,4 +1,5 @@
 import numpy
+import theano.tensor as Tensor
 from trainer import Trainer
 from deep_belief_network import DBN
 
@@ -61,14 +62,6 @@ class DeepBeliefNetworkTrainer(Trainer):
             layer_epoch_costs.append(epoch_costs)
     
         return layer_epoch_costs
-    
-    def mean_validation_loss(self):
-        """docstring for mean_validation_loss"""
-        return numpy.mean(self.validation_eval_function())
-        
-    def mean_test_loss(self):
-        """docstring for mean_test_loss"""
-        return numpy.mean(self.test_eval_function())
 
     def train(self, patience_increase = 2.0, improvement_threshold = 0.995):
         """docstring for train"""
@@ -102,11 +95,13 @@ class DeepBeliefNetworkTrainer(Trainer):
             k = k
         )
 
-        self.training_function, self.validation_eval_function, self.test_eval_function = self.dbn.build_finetune_functions(
-            dataset = self.dataset, 
-            batch_size = self.batch_size,
-            learning_rate = self.finetune_lr
-        )
+        minibatch_index = Tensor.lscalar()
+        inputs = Tensor.matrix('inputs')
+        outputs = Tensor.ivector('outputs')
+
+        self.training_function = self.compiled_training_function(self.dbn, minibatch_index, inputs, outputs, self.finetune_lr)
+        self.validation_eval_function = self.compiled_validation_function(self.dbn, minibatch_index, inputs, outputs)
+        self.test_eval_function = self.compiled_test_function(self.dbn, minibatch_index, inputs, outputs)
 
 from data_set import DataSet
 

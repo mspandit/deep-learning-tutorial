@@ -44,7 +44,12 @@ class Trainer(object):
         
     def mean_validation_loss(self):
         """docstring for mean_validation_loss"""
-        return numpy.mean([self.validation_eval_function(batch_index) for batch_index in xrange(self.n_valid_batches)])
+        return numpy.mean(
+            [
+                self.validation_eval_function(batch_index) 
+                for batch_index in xrange(self.n_valid_batches)
+            ]
+        )
         
     def mean_test_loss(self):
         """docstring for mean_test_loss"""
