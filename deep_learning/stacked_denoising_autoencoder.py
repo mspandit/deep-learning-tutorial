@@ -41,12 +41,13 @@ import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
+from classifier import Classifier
 from logistic_classifier import LogisticClassifier
 from hidden_layer import HiddenLayer
 from denoising_autoencoder import DenoisingAutoencoder
 
 
-class StackedDenoisingAutoencoder(object):
+class StackedDenoisingAutoencoder(Classifier):
     """Stacked denoising auto-encoder class (SdA)
 
     A stacked denoising autoencoder model is obtained by stacking several
@@ -93,7 +94,7 @@ class StackedDenoisingAutoencoder(object):
 
         self.sigmoid_layers = []
         self.dA_layers = []
-        self.params = []
+        self.parameters = []
         self.n_layers = len(hidden_layers_sizes)
 
         assert self.n_layers > 0
@@ -134,7 +135,7 @@ class StackedDenoisingAutoencoder(object):
             # sigmoid_layers are parameters of the StackedDAA
             # the visible biases in the dA are parameters of those
             # dA, but not the SdA
-            self.params.extend(sigmoid_layer.parameters)
+            self.parameters.extend(sigmoid_layer.parameters)
 
             # Construct a denoising autoencoder that shared weights with this
             # layer
@@ -154,7 +155,7 @@ class StackedDenoisingAutoencoder(object):
             output_units=n_outs
         )
 
-        self.params.extend(self.logLayer.parameters)
+        self.parameters.extend(self.logLayer.parameters)
         # construct a function that implements one step of finetunining
 
 
@@ -225,97 +226,24 @@ class StackedDenoisingAutoencoder(object):
         pretrain_models = []
         prev_input = inputs
         for i in xrange(self.n_layers):
-            # get the cost and the updates list
-            cost = self.dA_layers[i].cost(prev_input, corruption_level)
-            updates = self.dA_layers[i].updates(prev_input, learning_rate, corruption_level)
-            # compile the theano function
-            fn = theano.function(
-                inputs = [
-                    index,
-                    theano.Param(corruption_level, default=0.2),
-                    theano.Param(learning_rate, default=0.1)
-                ],
-                outputs = cost,
-                updates = updates,
-                givens = {
-                    inputs: train_set_input[batch_begin : batch_end]
-                }
+            # append `fn` to the list of functions
+            pretrain_models.append(
+                theano.function(
+                    inputs=[
+                        index,
+                        theano.Param(corruption_level, default=0.2),
+                        theano.Param(learning_rate, default=0.1)
+                    ],
+                    outputs=self.dA_layers[i].cost(prev_input, corruption_level),
+                    updates=self.dA_layers[i].updates(prev_input, learning_rate, corruption_level),
+                    givens={
+                        inputs: train_set_input[batch_begin : batch_end]
+                    }
+                )
             )
             prev_input = (
                 self.sigmoid_layers[i]
                 .output_probabilities_function(prev_input)
             )
-            # append `fn` to the list of functions
-            pretrain_models.append(fn)
 
         return pretrain_models
-
-    def build_finetune_functions(self, dataset, batch_size, inputs, outputs, learning_rate):
-        '''Generates a function `train` that implements one step of
-        finetuning, a function `validate` that computes the error on
-        a batch from the validation set, and a function `test` that
-        computes the error on a batch from the testing set
-
-        :type datasets: list of pairs of theano.tensor.TensorType
-        :param datasets: It is a list that contain all the datasets;
-                         the has to contain three pairs, `train`,
-                         `valid`, `test` in this order, where each pair
-                         is formed of two Theano variables, one for the
-                         datapoints, the other for the labels
-
-        :type batch_size: int
-        :param batch_size: size of a minibatch
-
-        :type learning_rate: float
-        :param learning_rate: learning rate used during finetune stage
-        '''
-
-        # compute number of minibatches for training, validation and testing
-        n_valid_batches = dataset.valid_set_input.get_value(borrow=True).shape[0]
-        n_valid_batches /= batch_size
-        n_test_batches = dataset.test_set_input.get_value(borrow=True).shape[0]
-        n_test_batches /= batch_size
-
-        index = T.lscalar('index')  # index to a [mini]batch
-
-        # compute the gradients with respect to the model parameters
-        gparams = T.grad(self.cost_function(inputs, outputs), self.params)
-
-        # compute list of fine-tuning updates
-        updates = []
-        for param, gparam in zip(self.params, gparams):
-            updates.append((param, param - gparam * learning_rate))
-
-        train_model = theano.function(
-            inputs=[index],
-            outputs=self.cost_function(inputs, outputs),
-            updates=updates,
-            givens={
-                inputs: dataset.train_set_input[index * batch_size : (index + 1) * batch_size],
-                outputs: dataset.train_set_output[index * batch_size : (index + 1) * batch_size]
-            },
-            name='stacked_denoising_autoencoder_training_function'
-        )
-
-        test_score_i = theano.function(
-            inputs = [index], 
-            outputs = self.evaluation_function(inputs, outputs),
-            givens = {
-                inputs: dataset.test_set_input[index * batch_size : (index + 1) * batch_size],
-                outputs: dataset.test_set_output[index * batch_size : (index + 1) * batch_size]
-            },
-            name = 'stacked_denoising_autoencoder_test_function'
-        )
-
-        valid_score_i = theano.function(
-            inputs = [index], 
-            outputs = self.evaluation_function(inputs, outputs),
-            givens = {
-                inputs: dataset.valid_set_input[index * batch_size : (index + 1) * batch_size],
-                outputs: dataset.valid_set_output[index * batch_size : (index + 1) * batch_size]
-            },
-            name = 'stacked_denoising_autoencoder_validation_function'
-        )
-
-        return train_model, valid_score_i, test_score_i
-        

@@ -1,4 +1,5 @@
 import numpy
+import theano
 import theano.tensor as Tensor
 from data_set import DataSet
 from trainer import Trainer
@@ -22,6 +23,59 @@ class StackedDenoisingAutoencoderTrainer(Trainer):
         self.pretrain_lr = pretrain_lr
 
 
+    def compiled_pretraining_functions(self, classifier, minibatch_index, train_set_input, inputs, outputs):
+        ''' Generates a list of functions, each of them implementing one
+        step in trainnig the dA corresponding to the layer with same index.
+        The function will require as input the minibatch index, and to train
+        a dA you just need to iterate, calling the corresponding function on
+        all minibatch indexes.
+
+        :type train_set_input: theano.tensor.TensorType
+        :param train_set_input: Shared variable that contains all datapoints used
+                            for training the dA
+
+        :type batch_size: int
+        :param batch_size: size of a [mini]batch
+
+        :type learning_rate: float
+        :param learning_rate: learning rate used during training for any of
+                              the dA layers
+        '''
+
+        corruption_level = Tensor.scalar('corruption')  # % of corruption to use
+        learning_rate = Tensor.scalar('lr')  # learning rate to use
+
+        # begining of a batch, given `index`
+        batch_begin = minibatch_index * self.batch_size
+        # ending of a batch given `index`
+        batch_end = batch_begin + self.batch_size
+
+        pretrain_models = []
+        prev_input = inputs
+        for i in xrange(classifier.n_layers):
+            # append `fn` to the list of functions
+            pretrain_models.append(
+                theano.function(
+                    inputs=[
+                        minibatch_index,
+                        theano.Param(corruption_level, default=0.2),
+                        theano.Param(learning_rate, default=0.1)
+                    ],
+                    outputs=classifier.dA_layers[i].cost(prev_input, corruption_level),
+                    updates=classifier.dA_layers[i].updates(prev_input, learning_rate, corruption_level),
+                    givens={
+                        inputs: train_set_input[batch_begin : batch_end]
+                    }
+                )
+            )
+            prev_input = (
+                classifier.sigmoid_layers[i]
+                .output_probabilities_function(prev_input)
+            )
+
+        return pretrain_models
+
+
     def preinitialize(self):
         """docstring for preinitialize"""
         # compute number of minibatches for training, validation and testing
@@ -30,6 +84,7 @@ class StackedDenoisingAutoencoderTrainer(Trainer):
         # numpy random generator
         self.numpy_rng = numpy.random.RandomState(89677)
 
+        minibatch_index = Tensor.lscalar('minibatch_index')
         inputs = Tensor.matrix('inputs')
         outputs = Tensor.ivector('outputs')
 
@@ -44,12 +99,19 @@ class StackedDenoisingAutoencoderTrainer(Trainer):
         #########################
         # PRETRAINING THE MODEL #
         #########################
-        self.pretraining_fns = self.sda.pretraining_functions(
-            train_set_input=self.dataset.train_set_input,
-            batch_size=self.batch_size,
-            inputs=inputs,
-            outputs=outputs
+        self.pretraining_fns = self.compiled_pretraining_functions(
+            self.sda,
+            minibatch_index,
+            self.dataset.train_set_input,
+            inputs,
+            outputs
         )
+        # self.sda.pretraining_functions(
+        #     train_set_input=self.dataset.train_set_input,
+        #     batch_size=self.batch_size,
+        #     inputs=inputs,
+        #     outputs=outputs
+        # )
     
 
     def pretrain(self):
@@ -68,9 +130,9 @@ class StackedDenoisingAutoencoderTrainer(Trainer):
                 for batch_index in xrange(self.n_train_batches):
                     layer_costs.append(
                         self.pretraining_fns[layer_index](
-                            index = batch_index,
-                            corruption = corruption_levels[layer_index],
-                            lr = self.pretrain_lr
+                            minibatch_index=batch_index,
+                            corruption=corruption_levels[layer_index],
+                            lr=self.pretrain_lr
                         )
                     )
                 # print 'Pretraining layer %d, epoch %d, cost %f' % (i, epoch, numpy.mean(c))
@@ -102,16 +164,29 @@ class StackedDenoisingAutoencoderTrainer(Trainer):
 
         inputs = Tensor.matrix('inputs')
         outputs = Tensor.ivector('outputs')
+        minibatch_index = Tensor.lscalar('minibatch_index')
 
         # get the training, validation and testing function for the model
-        self.training_function, self.validation_eval_function, self.test_eval_function = self.sda.build_finetune_functions(
-            dataset=self.dataset, 
-            batch_size=self.batch_size,
-            inputs=inputs,
-            outputs=outputs,
-            learning_rate=finetune_lr
+        self.training_function = self.compiled_training_function(
+            self.sda,
+            minibatch_index,
+            inputs,
+            outputs,
+            finetune_lr
         )
-        
+        self.validation_eval_function = self.compiled_validation_function(
+            self.sda,
+            minibatch_index,
+            inputs,
+            outputs
+        )
+        self.test_eval_function = self.compiled_test_function(
+            self.sda,
+            minibatch_index,
+            inputs,
+            outputs
+        )
+
 
 if __name__ == '__main__':
     dataset = DataSet()
