@@ -175,12 +175,12 @@ class DBN(Classifier):
         batch_end = batch_begin + batch_size
 
         pretrain_fns = []
-        for rbm in self.rbm_layers:
+        for i in xrange(self.n_layers):
 
             # get the cost and the updates list
             # using CD-k here (persisent=None) for training each RBM.
             # TODO: change cost function to reconstruction error
-            cost, updates = rbm.get_cost_updates(rbm.input, learning_rate,
+            cost, updates = self.rbm_layers[i].get_cost_updates(self.rbm_layers[i].input, learning_rate,
                                                  persistent=None, k=k)
 
             # compile the theano function
