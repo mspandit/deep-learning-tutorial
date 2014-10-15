@@ -45,10 +45,6 @@ class DBN(Classifier):
         if not theano_rng:
             theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
 
-        # allocate symbolic variables for the data
-        self.inputs = T.matrix('inputs')
-        self.outputs = T.ivector('outputs')
-
         # The DBN is an MLP, for which all weights of intermediate
         # layers are shared with a different RBM.  We will first
         # construct the DBN as a deep multilayer perceptron, and when
