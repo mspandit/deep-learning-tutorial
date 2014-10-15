@@ -41,8 +41,7 @@ from trainer import Trainer
 class ConvolutionalMultilayerPerceptronTrainer(Trainer):
     """docstring for ConvolutionalMultilayerPerceptronTrainer"""
 
-
-    def __init__(self, dataset, n_epochs = 200, batch_size = 500):
+    def __init__(self, dataset, n_epochs=200, batch_size=500):
         """
         :type n_epochs: int
         :param n_epochs: maximal number of epochs to run the optimizer
@@ -53,8 +52,7 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
             n_epochs
         )
 
-
-    def initialize(self, learning_rate=0.1, nkerns=[20,50]):
+    def initialize(self, learning_rate=0.1, nkerns=[20, 50]):
         """ Demonstrates lenet on MNIST dataset
 
         :type learning_rate: float
@@ -111,12 +109,12 @@ if __name__ == '__main__':
     end_time = time.clock()
     print >> sys.stderr, (
         'The code for file '
-        + os.path.split(__file__)[1] 
-        + ' ran for %.2fm' 
+        + os.path.split(__file__)[1]
+        + ' ran for %.2fm'
         % ((end_time - start_time) / 60.)
     )
     print(
         'Best validation score of %f %% obtained at iteration %i, with '
-        'test performance %f %%' 
+        'test performance %f %%'
         % (best_validation_loss * 100., best_iter + 1, test_score * 100.)
     )

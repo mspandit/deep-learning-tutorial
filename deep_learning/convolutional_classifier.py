@@ -5,9 +5,9 @@ from hidden_layer import HiddenLayer
 from classifier import Classifier
 from logistic_classifier import LogisticClassifier
 
+
 class ConvolutionalMultilayerPerceptronClassifier(Classifier):
     """docstring for ConvolutionalMultilayerPerceptronClassifier"""
-
 
     def __init__(self, batch_size, nkerns=[20, 50]):
         """
@@ -25,9 +25,9 @@ class ConvolutionalMultilayerPerceptronClassifier(Classifier):
         # maxpooling reduces this further to (24/2,24/2) = (12,12)
         # 4D output tensor is thus of shape (self.batch_size,nkerns[0],12,12)
         self.layer0 = PoolingLayer(
-            rng, 
+            rng,
             image_shape=(self.batch_size, 1, 28, 28),
-            filter_shape=(nkerns[0], 1, 5, 5), 
+            filter_shape=(nkerns[0], 1, 5, 5),
             poolsize=(2, 2)
         )
 
@@ -36,9 +36,9 @@ class ConvolutionalMultilayerPerceptronClassifier(Classifier):
         # maxpooling reduces this further to (8/2,8/2) = (4,4)
         # 4D output tensor is thus of shape (nkerns[0],nkerns[1],4,4)
         self.layer1 = PoolingLayer(
-            rng, 
+            rng,
             image_shape=(self.batch_size, nkerns[0], 12, 12),
-            filter_shape=(nkerns[1], nkerns[0], 5, 5), 
+            filter_shape=(nkerns[1], nkerns[0], 5, 5),
             poolsize=(2, 2)
         )
 
@@ -48,9 +48,9 @@ class ConvolutionalMultilayerPerceptronClassifier(Classifier):
 
         # construct a fully-connected sigmoidal layer
         self.layer2 = HiddenLayer(
-            rng, 
+            rng,
             input_units=nkerns[1] * 4 * 4,
-            output_units=500, 
+            output_units=500,
             nonlinear_function=Tensor.tanh
         )
 
@@ -64,7 +64,6 @@ class ConvolutionalMultilayerPerceptronClassifier(Classifier):
             + self.layer1.parameters
             + self.layer0.parameters
         )
-
 
     def cost_function(self, inputs, outputs):
         """docstring for cost_function"""
@@ -83,7 +82,6 @@ class ConvolutionalMultilayerPerceptronClassifier(Classifier):
             outputs
         )
 
-
     def evaluation_function(self, inputs, outputs):
         """docstring for evaluation_function"""
         return self.layer3.evaluation_function(
@@ -93,6 +91,6 @@ class ConvolutionalMultilayerPerceptronClassifier(Classifier):
                         inputs.reshape((self.batch_size, 1, 28, 28))
                     )
                 ).flatten(2)
-            ), 
+            ),
             outputs
         )

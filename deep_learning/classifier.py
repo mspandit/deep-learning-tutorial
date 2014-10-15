@@ -2,42 +2,39 @@ import numpy
 import theano
 import theano.tensor as Tensor
 
+
 class Classifier(object):
     """docstring for Classifier"""
 
-
     def __init__(self):
         super(Classifier, self).__init__()
-
 
     def initialize_biases(self, output_units, biases, name):
         """docstring for initialize_biases"""
 
         if biases is None:
             biases_values = numpy.zeros(
-                (output_units,), 
+                (output_units,),
                 dtype=theano.config.floatX
             )
             self.biases = theano.shared(
-                value=biases_values, 
-                name=name, 
+                value=biases_values,
+                name=name,
                 borrow=True
             )
         else:
             self.biases = biases
-
 
     def params_gradient(self, inputs, outputs):
         """
         compute the gradient of cost with respect to theta (stored in params).
         the resulting gradients will be stored in a list gparams
         """
-        
+
         return [
-            Tensor.grad(self.cost_function(inputs, outputs), param) 
+            Tensor.grad(self.cost_function(inputs, outputs), param)
             for param in self.parameters
         ]
-
 
     def updates(self, inputs, outputs, learning_rate):
         """
@@ -54,13 +51,12 @@ class Classifier(object):
         (params[i],grads[i]) pairs.
         """
         return [
-            (param, param - learning_rate * gparam) 
+            (param, param - learning_rate * gparam)
             for param, gparam in zip(
                 self.parameters,
                 self.params_gradient(inputs, outputs)
             )
         ]
-
 
     def output_probabilities_function(self, input):
         """
@@ -69,14 +65,12 @@ class Classifier(object):
         """
         raise NotImplementedError()
 
-
     def cost_function(self, inputs, outputs):
         """
         Composite classifiers will implement this using the implementation of
         the top layer (typically LogisticRegression)
         """
         raise NotImplementedError()
-
 
     def evaluation_function(self, inputs, outputs):
         """
