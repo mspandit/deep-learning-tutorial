@@ -70,17 +70,6 @@ class DBN(Classifier):
             else:
                 input_size = hidden_layers_sizes[i - 1]
 
-            # the input to this layer is either the activation of the
-            # hidden layer below or the input of the DBN if you are on
-            # the first layer
-            if i == 0:
-                layer_input = self.inputs
-            else:
-                layer_input = (
-                    self.sigmoid_layers[-1]
-                    .output_probabilities_function(layer_input)
-                )
-
             sigmoid_layer = HiddenLayer(
                 rng=numpy_rng,
                 input_units=input_size,
@@ -102,7 +91,6 @@ class DBN(Classifier):
             rbm_layer = RestrictedBoltzmannMachine(
                 numpy_rng = numpy_rng,
                 theano_rng = theano_rng,
-                input = layer_input,
                 n_visible = input_size,
                 n_hidden = hidden_layers_sizes[i],
                 W = sigmoid_layer.weights,
@@ -193,6 +181,10 @@ class DBN(Classifier):
             )
             # append `fn` to the list of functions
             pretrain_fns.append(fn)
+
+            # the input to this layer is either the activation of the
+            # hidden layer below or the input of the DBN if you are on
+            # the first layer
             prev_inputs = (
                 self.sigmoid_layers[i]
                 .output_probabilities_function(prev_inputs)

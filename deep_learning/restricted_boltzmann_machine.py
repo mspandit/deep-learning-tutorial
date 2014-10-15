@@ -83,7 +83,6 @@ class RestrictedBoltzmannMachine(Classifier):
 
     def __init__(
         self,
-        input=None,
         n_visible=784,
         n_hidden=500,
         W=None,
@@ -102,13 +101,6 @@ class RestrictedBoltzmannMachine(Classifier):
             RandomStreams(numpy_rng.randint(2 ** 30)) 
             if theano_rng is None 
             else theano_rng
-        )
-
-        # initialize input layer for standalone RBM or layer0 of DBN
-        self.input = (
-            T.matrix('restricted_boltzmann_machine_input') 
-            if not input 
-            else input
         )
 
         self.initialize_weights(numpy_rng, n_hidden, n_visible, W, 'rbm_weights')

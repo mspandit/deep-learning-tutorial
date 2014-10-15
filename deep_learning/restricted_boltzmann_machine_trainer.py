@@ -98,7 +98,7 @@ class RestrictedBoltzmannMachineTrainer(Trainer):
         rng = numpy.random.RandomState(123)
         
         self.rbm = RestrictedBoltzmannMachine(
-            input=inputs,
+            # input=inputs,
             n_visible=28 * 28,
             n_hidden=n_hidden,
             numpy_rng=rng,
