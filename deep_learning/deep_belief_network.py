@@ -147,7 +147,7 @@ class DBN(Classifier):
             )
         return self.logLayer.evaluation_function(prev_input, outputs)
 
-    def pretraining_functions(self, train_set_input, batch_size, k):
+    def pretraining_functions(self, inputs, train_set_input, batch_size, k):
         '''Generates a list of functions, for performing one step of
         gradient descent at a given layer. The function will require
         as input the minibatch index, and to train an RBM you just
@@ -175,12 +175,13 @@ class DBN(Classifier):
         batch_end = batch_begin + batch_size
 
         pretrain_fns = []
+        prev_inputs = inputs
         for i in xrange(self.n_layers):
 
             # get the cost and the updates list
             # using CD-k here (persisent=None) for training each RBM.
             # TODO: change cost function to reconstruction error
-            cost, updates = self.rbm_layers[i].get_cost_updates(self.rbm_layers[i].input, learning_rate,
+            cost, updates = self.rbm_layers[i].get_cost_updates(prev_inputs, learning_rate,
                                                  persistent=None, k=k)
 
             # compile the theano function
@@ -188,9 +189,12 @@ class DBN(Classifier):
                 inputs=[index, theano.Param(learning_rate, default=0.1)],
                 outputs=cost,
                 updates=updates,
-                givens={self.inputs: train_set_input[batch_begin: batch_end]}
+                givens={inputs: train_set_input[batch_begin: batch_end]}
             )
             # append `fn` to the list of functions
             pretrain_fns.append(fn)
-
+            prev_inputs = (
+                self.sigmoid_layers[i]
+                .output_probabilities_function(prev_inputs)
+            )
         return pretrain_fns

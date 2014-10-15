@@ -106,6 +106,7 @@ class DeepBeliefNetworkTrainer(Trainer):
         outputs = Tensor.ivector('outputs')
 
         self.pretraining_fns = self.dbn.pretraining_functions(
+            inputs,
             train_set_input = self.dataset.train_set_input,
             batch_size = self.batch_size,
             k = k
