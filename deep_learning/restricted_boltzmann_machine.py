@@ -21,36 +21,42 @@ class RestrictedBoltzmannMachine(Classifier):
 
 
     def initialize_weights(self, numpy_rng, n_hidden, n_visible, weights, name):
-        """docstring for initialize_weights"""
-        if weights is None:
-            # W is initialized with `initial_W` which is uniformely
-            # sampled from -4*sqrt(6./(n_visible+n_hidden)) and
-            # 4*sqrt(6./(n_hidden+n_visible)) the output of uniform if
-            # converted using asarray to dtype theano.config.floatX so
-            # that the code is runable on GPU
-            initial_W = numpy.asarray(
-                self.rng.uniform(
-                    low=-4 * numpy.sqrt(6. / (n_hidden + n_visible)),
-                    high=4 * numpy.sqrt(6. / (n_hidden + n_visible)),
-                    size=(n_visible, n_hidden)
+        """
+        W is initialized with `initial_W` which is uniformly
+        sampled from -4*sqrt(6./(n_visible+n_hidden)) and
+        4*sqrt(6./(n_hidden+n_visible)) the output of uniform if
+        converted using asarray to dtype theano.config.floatX so
+        that the code is runable on GPU
+        """
+
+        self.rng = (
+            numpy.random.RandomState(1234) 
+            if numpy_rng is None 
+            else numpy_rng
+        )
+
+        self.weights = (
+            theano.shared(
+                value=numpy.asarray(
+                    self.rng.uniform(
+                        low=-4 * numpy.sqrt(6. / (n_hidden + n_visible)),
+                        high=4 * numpy.sqrt(6. / (n_hidden + n_visible)),
+                        size=(n_visible, n_hidden)
+                    ),
+                    dtype=theano.config.floatX
                 ),
-                dtype=theano.config.floatX
-            )
-            # theano shared variables for weights and biases
-            weights = theano.shared(
-                value=initial_W,
                 name=name,
                 borrow=True
             )
-
-        self.W = weights
+            if weights is None
+            else weights
+        )
 
 
     def initialize_biases(self, n_visible, n_hidden, hbias, vbias, hname, vname):
         """docstring for initialize_biases"""
-        if hbias is None:
-            # create shared variable for hidden units bias
-            hbias = theano.shared(
+        self.hbias = (
+            theano.shared(
                 value=numpy.zeros(
                     n_hidden,
                     dtype=theano.config.floatX
@@ -58,11 +64,12 @@ class RestrictedBoltzmannMachine(Classifier):
                 name=hname,
                 borrow=True
             )
-        self.hbias = hbias
+            if hbias is None
+            else hbias
+        )
 
-        if vbias is None:
-            # create shared variable for visible units bias
-            vbias = theano.shared(
+        self.vbias = (
+            theano.shared(
                 value=numpy.zeros(
                     n_visible,
                     dtype=theano.config.floatX
@@ -70,7 +77,9 @@ class RestrictedBoltzmannMachine(Classifier):
                 name=vname,
                 borrow=True
             )
-        self.vbias = vbias
+            if vbias is None
+            else vbias
+        )
 
 
     def __init__(
@@ -90,31 +99,29 @@ class RestrictedBoltzmannMachine(Classifier):
         
         self.n_visible = n_visible
         self.n_hidden = n_hidden
+        self.theano_rng = (
+            RandomStreams(numpy_rng.randint(2 ** 30)) 
+            if theano_rng is None 
+            else theano_rng
+        )
 
-        if numpy_rng is None:
-            # create a number generator
-            numpy_rng = numpy.random.RandomState(1234)
-        self.rng = numpy_rng
-
-        if theano_rng is None:
-            theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
+        # initialize input layer for standalone RBM or layer0 of DBN
+        self.input = (
+            T.matrix('restricted_boltzmann_machine_input') 
+            if not input 
+            else input
+        )
 
         self.initialize_weights(numpy_rng, n_hidden, n_visible, W, 'rbm_weights')
         self.initialize_biases(n_visible, n_hidden, hbias, vbias, 'rbm_hbias', 'rbm_vbias')
-
-        # initialize input layer for standalone RBM or layer0 of DBN
-        self.input = input
-        if not input:
-            self.input = T.matrix('input')
-        self.theano_rng = theano_rng
         
         # **** WARNING: It is not a good idea to put things in this list
         # other than shared variables created in this function.
-        self.parameters = [self.W, self.hbias, self.vbias]
+        self.parameters = [self.weights, self.hbias, self.vbias]
 
     def free_energy(self, v_sample):
         ''' Function to compute the free energy '''
-        wx_b = T.dot(v_sample, self.W) + self.hbias
+        wx_b = T.dot(v_sample, self.weights) + self.hbias
         vbias_term = T.dot(v_sample, self.vbias)
         hidden_term = T.sum(T.log(1 + T.exp(wx_b)), axis=1)
         return -hidden_term - vbias_term
@@ -130,7 +137,7 @@ class RestrictedBoltzmannMachine(Classifier):
         reconstruction cost function)
 
         '''
-        pre_sigmoid_activation = T.dot(vis, self.W) + self.hbias
+        pre_sigmoid_activation = T.dot(vis, self.weights) + self.hbias
         return [pre_sigmoid_activation, T.nnet.sigmoid(pre_sigmoid_activation)]
 
     def sample_h_given_v(self, v0_sample):
@@ -158,7 +165,7 @@ class RestrictedBoltzmannMachine(Classifier):
         reconstruction cost function)
 
         '''
-        pre_sigmoid_activation = T.dot(hid, self.W.T) + self.vbias
+        pre_sigmoid_activation = T.dot(hid, self.weights.T) + self.vbias
         return [pre_sigmoid_activation, T.nnet.sigmoid(pre_sigmoid_activation)]
 
     def sample_v_given_h(self, h0_sample):

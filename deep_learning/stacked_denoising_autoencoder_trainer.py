@@ -96,9 +96,6 @@ class StackedDenoisingAutoencoderTrainer(Trainer):
             n_outs=10
         )
 
-        #########################
-        # PRETRAINING THE MODEL #
-        #########################
         self.pretraining_fns = self.compiled_pretraining_functions(
             self.sda,
             minibatch_index,
@@ -106,12 +103,6 @@ class StackedDenoisingAutoencoderTrainer(Trainer):
             inputs,
             outputs
         )
-        # self.sda.pretraining_functions(
-        #     train_set_input=self.dataset.train_set_input,
-        #     batch_size=self.batch_size,
-        #     inputs=inputs,
-        #     outputs=outputs
-        # )
     
 
     def pretrain(self):

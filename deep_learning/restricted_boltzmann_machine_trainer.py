@@ -43,7 +43,7 @@ class RestrictedBoltzmannMachineTrainer(Trainer):
             # Construct image from the weight matrix
             image = Image.fromarray(
                 tile_raster_images(
-                    X = self.rbm.W.get_value(borrow = True).T,
+                    X = self.rbm.weights.get_value(borrow = True).T,
                     img_shape = (28, 28), 
                     tile_shape = (10, 10),
                     tile_spacing = (1, 1)
@@ -91,7 +91,7 @@ class RestrictedBoltzmannMachineTrainer(Trainer):
         """
         """
 
-        minibatch_index = Tensor.lscalar()
+        minibatch_index = Tensor.lscalar('minibatch_index')
         inputs = Tensor.matrix('inputs')
 
         rng = numpy.random.RandomState(123)
