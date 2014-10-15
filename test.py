@@ -3,8 +3,8 @@ import unittest
 from logistic_trainer import LogisticTrainer
 from perceptron_trainer import MultilayerPerceptronTrainer
 from convolutional_trainer import ConvolutionalMultilayerPerceptronTrainer
-from denoising_autoencoder import DenoisingAutoencoder
-from stacked_denoising_autoencoder import StackedDenoisingAutoencoder
+from denoising_autoencoder import DenoisingAutoencoderTrainer
+from stacked_denoising_autoencoder import StackedDenoisingAutoencoderTrainer
 from restricted_boltzmann_machine_trainer import RestrictedBoltzmannMachineTrainer
 from deep_belief_trainer import DeepBeliefNetworkTrainer
 from data_set import DataSet
@@ -38,7 +38,7 @@ class TestTutorials(unittest.TestCase):
         self.assertEqual(test_score, 0.76)
 
     def test_denoising_autoencoder(self):
-        da = DenoisingAutoencoder(self.dataset, training_epochs = 1, batch_size = 2)
+        da = DenoisingAutoencoderTrainer(self.dataset, training_epochs = 1, batch_size = 2)
         uncorrupt_costs, corrupt_costs = da.evaluate()
         self.assertEqual(uncorrupt_costs, [149.16503228187111])
         self.assertTrue(corrupt_costs[0] > 173.6649940882978 and corrupt_costs[0] < 173.6649940882979)
@@ -64,7 +64,7 @@ class TestTutorials(unittest.TestCase):
         self.assertEqual(epoch_costs, [-174.86070176730175])
 
     def test_stacked_denoising_autoencoder(self):
-        sda = StackedDenoisingAutoencoder(self.dataset, pretraining_epochs = 1, n_epochs = 1, batch_size = 2)
+        sda = StackedDenoisingAutoencoderTrainer(self.dataset, pretraining_epochs = 1, n_epochs = 1, batch_size = 2)
         sda.preinitialize()
         layer_epoch_costs = sda.pretrain()
         self.assertEqual(layer_epoch_costs, [[328.15852933515004], [771.56755018914123], [661.65193991637716]])

@@ -47,7 +47,7 @@ from utilities import tile_raster_images
 import Image
 
 
-class dA(object):
+class DenoisingAutoencoder(object):
     """Denoising Auto-Encoder class (dA)
 
     A denoising autoencoders tries to reconstruct the input from a corrupted
@@ -231,7 +231,7 @@ class dA(object):
 
 from data_set import DataSet
 
-class DenoisingAutoencoder(object):
+class DenoisingAutoencoderTrainer(object):
     """docstring for DenoisingAutoencoder"""
     def __init__(self, dataset, training_epochs=15, learning_rate=0.1,
                 batch_size=20):
@@ -243,7 +243,7 @@ class DenoisingAutoencoder(object):
         :param learning_rate: learning rate used for training the DeNosing
                               AutoEncoder
         """
-        super(DenoisingAutoencoder, self).__init__()
+        super(DenoisingAutoencoderTrainer, self).__init__()
         self.dataset = dataset
         self.training_epochs = training_epochs
         self.learning_rate = learning_rate
@@ -260,9 +260,10 @@ class DenoisingAutoencoder(object):
         epoch = 0
         while epoch < self.training_epochs:
             # go through trainng set
-            c = []
-            for batch_index in xrange(self.n_train_batches):
-                c.append(self.train_da(batch_index))
+            c = [
+                self.train_da(batch_index)
+                for batch_index in xrange(self.n_train_batches)
+            ]
             # print 'Training epoch %d, cost %f' % (epoch, numpy.mean(c))
             costs.append(numpy.mean(c))
         
@@ -274,7 +275,7 @@ class DenoisingAutoencoder(object):
         rng = numpy.random.RandomState(123)
         theano_rng = RandomStreams(rng.randint(2 ** 30))
 
-        da = dA(numpy_rng = rng, theano_rng = theano_rng, input = x, n_visible = 28 * 28, n_hidden = 500)
+        da = DenoisingAutoencoder(numpy_rng = rng, theano_rng = theano_rng, input = x, n_visible = 28 * 28, n_hidden = 500)
 
         cost = da.cost(corruption_level = corruption_level)
         updates = da.updates(corruption_level = corruption_level, learning_rate = self.learning_rate)
@@ -320,5 +321,5 @@ class DenoisingAutoencoder(object):
 if __name__ == '__main__':
     dataset = DataSet()
     dataset.load()
-    da = DenoisingAutoencoder(dataset)
+    da = DenoisingAutoencoderTrainer(dataset)
     uncorrupt_costs, corrupt_costs = da.evaluate()

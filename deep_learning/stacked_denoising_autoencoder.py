@@ -43,10 +43,10 @@ from theano.tensor.shared_randomstreams import RandomStreams
 
 from logistic_classifier import LogisticClassifier
 from hidden_layer import HiddenLayer
-from denoising_autoencoder import dA
+from denoising_autoencoder import DenoisingAutoencoder
 
 
-class SdA(object):
+class StackedDenoisingAutoencoder(object):
     """Stacked denoising auto-encoder class (SdA)
 
     A stacked denoising autoencoder model is obtained by stacking several
@@ -154,7 +154,7 @@ class SdA(object):
 
             # Construct a denoising autoencoder that shared weights with this
             # layer
-            dA_layer = dA(
+            dA_layer = DenoisingAutoencoder(
                 numpy_rng=numpy_rng,
                 theano_rng=theano_rng,
                 input=layer_input,
@@ -324,7 +324,7 @@ class SdA(object):
 from data_set import DataSet
 from trainer import Trainer
 
-class StackedDenoisingAutoencoder(Trainer):
+class StackedDenoisingAutoencoderTrainer(Trainer):
     """docstring for StackedDenoisingAutoencoder"""
     def __init__(self, dataset, pretraining_epochs = 15, n_epochs = 1000, batch_size = 1, pretrain_lr = 0.001):
         """
@@ -334,7 +334,7 @@ class StackedDenoisingAutoencoder(Trainer):
         :type pretrain_lr: float
         :param pretrain_lr: learning rate to be used during pre-training
         """
-        super(StackedDenoisingAutoencoder, self).__init__(dataset, batch_size, n_epochs)
+        super(StackedDenoisingAutoencoderTrainer, self).__init__(dataset, batch_size, n_epochs)
         self.pretraining_epochs = pretraining_epochs
         self.pretrain_lr = pretrain_lr
 
@@ -347,7 +347,7 @@ class StackedDenoisingAutoencoder(Trainer):
         self.numpy_rng = numpy.random.RandomState(89677)
 
         # construct the stacked denoising autoencoder class
-        self.sda = SdA(
+        self.sda = StackedDenoisingAutoencoder(
             numpy_rng = self.numpy_rng, 
             n_ins = 28 * 28,
             hidden_layers_sizes = [1000, 1000, 1000],
@@ -400,7 +400,7 @@ class StackedDenoisingAutoencoder(Trainer):
     def train(self, patience, patience_increase = 2.0, improvement_threshold = 0.995):
         """docstring for train"""
         patience = 10 * self.n_train_batches  # look as this many examples regardless
-        return super(StackedDenoisingAutoencoder, self).train(patience, patience_increase, improvement_threshold)
+        return super(StackedDenoisingAutoencoderTrainer, self).train(patience, patience_increase, improvement_threshold)
     
     def initialize(self, finetune_lr=0.1):
         """
@@ -429,7 +429,7 @@ class StackedDenoisingAutoencoder(Trainer):
 if __name__ == '__main__':
     dataset = DataSet()
     dataset.load()
-    sda = StackedDenoisingAutoencoder(dataset)
+    sda = StackedDenoisingAutoencoderTrainer(dataset)
     sda.preinitialize()
     start_time = time.clock()
     layer_epoch_costs = sda.pretrain()
