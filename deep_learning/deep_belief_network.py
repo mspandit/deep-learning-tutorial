@@ -180,7 +180,7 @@ class DBN(Classifier):
             # get the cost and the updates list
             # using CD-k here (persisent=None) for training each RBM.
             # TODO: change cost function to reconstruction error
-            cost, updates = rbm.get_cost_updates(learning_rate,
+            cost, updates = rbm.get_cost_updates(rbm.input, learning_rate,
                                                  persistent=None, k=k)
 
             # compile the theano function

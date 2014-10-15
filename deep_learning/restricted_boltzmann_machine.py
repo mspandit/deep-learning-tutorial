@@ -196,7 +196,7 @@ class RestrictedBoltzmannMachine(Classifier):
         return [pre_sigmoid_h1, h1_mean, h1_sample,
                 pre_sigmoid_v1, v1_mean, v1_sample]
 
-    def get_cost_updates(self, lr=0.1, persistent=None, k=1):
+    def get_cost_updates(self, inputs, lr=0.1, persistent=None, k=1):
         """This functions implements one step of CD-k or PCD-k
 
         :param lr: learning rate used to train the RBM
@@ -215,7 +215,7 @@ class RestrictedBoltzmannMachine(Classifier):
         """
 
         # compute positive phase
-        pre_sigmoid_ph, ph_mean, ph_sample = self.sample_h_given_v(self.input)
+        pre_sigmoid_ph, ph_mean, ph_sample = self.sample_h_given_v(inputs)
 
         # decide how to initialize persistent chain:
         # for CD, we use the newly generate hidden sample
@@ -244,7 +244,7 @@ class RestrictedBoltzmannMachine(Classifier):
         # not that we only need the sample at the end of the chain
         chain_end = nv_samples[-1]
 
-        cost = T.mean(self.free_energy(self.input)) - T.mean(
+        cost = T.mean(self.free_energy(inputs)) - T.mean(
             self.free_energy(chain_end))
         # We must not compute the gradient through the gibbs sampling
         gparams = T.grad(cost, self.parameters, consider_constant=[chain_end])
@@ -258,22 +258,22 @@ class RestrictedBoltzmannMachine(Classifier):
             # Note that this works only if persistent is a shared variable
             updates[persistent] = nh_samples[-1]
             # pseudo-likelihood is a better proxy for PCD
-            monitoring_cost = self.get_pseudo_likelihood_cost(updates)
+            monitoring_cost = self.get_pseudo_likelihood_cost(inputs, updates)
         else:
             # reconstruction cross-entropy is a better proxy for CD
-            monitoring_cost = self.get_reconstruction_cost(updates,
+            monitoring_cost = self.get_reconstruction_cost(inputs, updates,
                                                            pre_sigmoid_nvs[-1])
 
         return monitoring_cost, updates
 
-    def get_pseudo_likelihood_cost(self, updates):
+    def get_pseudo_likelihood_cost(self, inputs, updates):
         """Stochastic approximation to the pseudo-likelihood"""
 
         # index of bit i in expression p(x_i | x_{\i})
         bit_i_idx = theano.shared(value=0, name='bit_i_idx')
 
         # binarize the input image by rounding to nearest integer
-        xi = T.round(self.input)
+        xi = T.round(inputs)
 
         # calculate free energy for the given bit configuration
         fe_xi = self.free_energy(xi)
@@ -295,7 +295,7 @@ class RestrictedBoltzmannMachine(Classifier):
 
         return cost
 
-    def get_reconstruction_cost(self, updates, pre_sigmoid_nv):
+    def get_reconstruction_cost(self, inputs, updates, pre_sigmoid_nv):
         """Approximation to the reconstruction error
 
         Note that this function requires the pre-sigmoid activation as
@@ -326,8 +326,8 @@ class RestrictedBoltzmannMachine(Classifier):
         """
 
         cross_entropy = T.mean(
-                T.sum(self.input * T.log(T.nnet.sigmoid(pre_sigmoid_nv)) +
-                (1 - self.input) * T.log(1 - T.nnet.sigmoid(pre_sigmoid_nv)),
+                T.sum(inputs * T.log(T.nnet.sigmoid(pre_sigmoid_nv)) +
+                (1 - inputs) * T.log(1 - T.nnet.sigmoid(pre_sigmoid_nv)),
                       axis=1))
 
         return cross_entropy

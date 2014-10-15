@@ -62,6 +62,7 @@ class RestrictedBoltzmannMachineTrainer(Trainer):
 
         # get the cost and the gradient corresponding to one step of CD-15
         cost, updates = classifier.get_cost_updates(
+            inputs,
             lr=learning_rate,
             persistent=persistent_chain,
             k=15
