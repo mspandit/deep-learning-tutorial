@@ -61,6 +61,55 @@ class DenoisingAutoencoder(object):
 
     """
 
+
+    def initialize_weights(self, numpy_rng, n_hidden, n_visible, W):
+        """
+        note : W' was written as `W_prime` and b' as `b_prime`
+
+        W is initialized with `initial_W` which is uniformely sampled
+        from -4*sqrt(6./(n_visible+n_hidden)) and
+        4*sqrt(6./(n_hidden+n_visible)) the output of uniform if
+        converted using asarray to dtype
+        theano.config.floatX so that the code is runable on GPU
+        """
+
+        if not W:
+            initial_W = numpy.asarray(
+                numpy_rng.uniform(
+                    low=-4 * numpy.sqrt(6. / (n_hidden + n_visible)),
+                    high=4 * numpy.sqrt(6. / (n_hidden + n_visible)),
+                    size=(n_visible, n_hidden)
+                ),
+                dtype=theano.config.floatX)
+            W = theano.shared(
+                value=initial_W,
+                name='denoising_autoencoder_weights',
+                borrow=True
+            )
+        self.W = W
+        
+        self.W_prime = self.W.T  # tied weights
+
+
+    def initialize_biases(self, n_hidden, n_visible, bhid, bvis):
+        """docstring for initialize_biases"""
+        if not bvis:
+            bvis = theano.shared(value=numpy.zeros(n_visible,
+                                         dtype=theano.config.floatX),
+                                 borrow=True)
+
+        if not bhid:
+            bhid = theano.shared(value=numpy.zeros(n_hidden,
+                                                   dtype=theano.config.floatX),
+                                 name='b',
+                                 borrow=True)
+
+        # b corresponds to the bias of the hidden
+        self.b = bhid
+        # b_prime corresponds to the bias of the visible
+        self.b_prime = bvis
+
+
     def __init__(self, numpy_rng, theano_rng=None,
                  n_visible=784, n_hidden=500,
                  W=None, bhid=None, bvis=None):
@@ -112,39 +161,10 @@ class DenoisingAutoencoder(object):
         # create a Theano random generator that gives symbolic random values
         if not theano_rng:
             theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
-
-        # note : W' was written as `W_prime` and b' as `b_prime`
-        if not W:
-            # W is initialized with `initial_W` which is uniformely sampled
-            # from -4*sqrt(6./(n_visible+n_hidden)) and
-            # 4*sqrt(6./(n_hidden+n_visible))the output of uniform if
-            # converted using asarray to dtype
-            # theano.config.floatX so that the code is runable on GPU
-            initial_W = numpy.asarray(numpy_rng.uniform(
-                      low=-4 * numpy.sqrt(6. / (n_hidden + n_visible)),
-                      high=4 * numpy.sqrt(6. / (n_hidden + n_visible)),
-                      size=(n_visible, n_hidden)), dtype=theano.config.floatX)
-            W = theano.shared(value=initial_W, name='W', borrow=True)
-
-        if not bvis:
-            bvis = theano.shared(value=numpy.zeros(n_visible,
-                                         dtype=theano.config.floatX),
-                                 borrow=True)
-
-        if not bhid:
-            bhid = theano.shared(value=numpy.zeros(n_hidden,
-                                                   dtype=theano.config.floatX),
-                                 name='b',
-                                 borrow=True)
-
-        self.W = W
-        # b corresponds to the bias of the hidden
-        self.b = bhid
-        # b_prime corresponds to the bias of the visible
-        self.b_prime = bvis
-        # tied weights, therefore W_prime is W transpose
-        self.W_prime = self.W.T
         self.theano_rng = theano_rng
+
+        self.initialize_weights(numpy_rng, n_hidden, n_visible, W)
+        self.initialize_biases(n_hidden, n_visible, bhid, bvis)
 
         self.params = [self.W, self.b, self.b_prime]
         self.cost_fn = None

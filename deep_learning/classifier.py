@@ -60,3 +60,27 @@ class Classifier(object):
                 self.params_gradient(inputs, outputs)
             )
         ]
+
+
+    def output_probabilities_function(self, input):
+        """
+        Simple classifiers will implement this, but compoosite classifiers
+        will use their components' implementations.
+        """
+        raise NotImplementedError()
+
+
+    def cost_function(self, inputs, outputs):
+        """
+        Composite classifiers will implement this using the implementation of
+        the top layer (typically LogisticRegression)
+        """
+        raise NotImplementedError()
+
+
+    def evaluation_function(self, inputs, outputs):
+        """
+        Composite classifiers will implement this using the implementation of
+        the top layer (typically LogisticRegression)
+        """
+        raise NotImplementedError()
