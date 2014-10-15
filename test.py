@@ -49,9 +49,11 @@ class TestTutorials(unittest.TestCase):
     def test_logistic(self):
         lc = LogisticTrainer(self.dataset, batch_size = 2, n_epochs = 1)
         lc.initialize()
-        epoch_losses, best_validation_loss, best_iter, test_score = lc.train(patience = 5000, patience_increase = 2, improvement_threshold = 0.995)
-        self.assertEqual(epoch_losses, [[0.40000000000000002, 49]])
-        self.assertEqual(test_score, 0.30)
+        lc.start_training(patience=5000, patience_increase=2, improvement_threshold=0.995)
+        while lc.continue_training():
+            pass
+        self.assertEqual(lc.epoch_losses, [[0.40000000000000002, 49]])
+        self.assertEqual(lc.test_score, 0.30)
 
     def test_multilayer_perceptron(self):
         mp = MultilayerPerceptronTrainer(self.dataset, n_epochs = 1, batch_size = 2)

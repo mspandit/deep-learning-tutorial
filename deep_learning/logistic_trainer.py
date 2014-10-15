@@ -1,8 +1,12 @@
+import os
+import sys
+import time
 import theano
 import theano.tensor as Tensor
 
 from logistic_classifier import LogisticClassifier
 from trainer import Trainer
+from data_set import DataSet
 
 class LogisticTrainer(Trainer):
     """docstring for LogisticClassifier"""
@@ -45,24 +49,27 @@ class LogisticTrainer(Trainer):
 if __name__ == '__main__':
     dataset = DataSet()
     dataset.load()
-    trainer = LogisticClassifierTrainer(dataset)
+    trainer = LogisticTrainer(dataset)
     trainer.initialize()
-
+    trainer.start_training()
     start_time = time.clock()
-    epoch_losses, best_validation_loss, best_iter, test_score = trainer.train()
-    end_time = time.clock()
-    for epoch_index in xrange(len(epoch_losses)):
+    while (trainer.continue_training()):
         print (
             'epoch %d, validation error %f%%'
-            % (epoch_index, epoch_losses[epoch_index][0] * 100.0)
+            % (trainer.epoch, trainer.epoch_losses[-1][0] * 100.0)
         )
+    end_time = time.clock()
         
     print >> sys.stderr, (
         'The code for file '
         + os.path.split(__file__)[1]
-        + ' ran for %.1fs' % ((end_time - start_time))
+        + ' ran for %.1fs.' % ((end_time - start_time))
     )
-    print(('Optimization complete with best validation score of %f %%,'
-           'with test performance %f %%') %
-                 (best_validation_loss * 100.0, test_score * 100.))
+    print (
+        (
+            'Optimization completed with best validation score of %f%% '
+            'and test performance %f%%'
+        )
+        % (trainer.best_validation_loss * 100.0, trainer.test_score * 100.)
+    )
     

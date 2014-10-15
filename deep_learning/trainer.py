@@ -17,6 +17,63 @@ class Trainer(object):
         self.n_train_batches = self.dataset.train_set_input.get_value(
             borrow=True
         ).shape[0] / self.batch_size
+
+    def start_training(
+        self,
+        patience=5000,
+        patience_increase=2,
+        improvement_threshold=0.995
+    ):
+        """docstring for start_training"""
+        self.patience = patience
+        self.patience_increase = patience_increase
+        self.improvement_threshold = improvement_threshold
+        self.best_validation_loss = numpy.inf
+        self.best_iter = 0
+        self.test_score = 0.0
+        self.validation_frequency = min(self.n_train_batches, self.patience / 2)
+        self.epoch = 0
+        self.epoch_losses = []
+        self.done_looping = False
+
+    def continue_training(self):
+        """
+        """
+        if (self.epoch < self.n_epochs) and (not self.done_looping):
+            self.epoch += 1
+            for minibatch_index in xrange(self.n_train_batches):
+                self.training_function(minibatch_index)
+                self.iter = (
+                    (self.epoch - 1) * self.n_train_batches + minibatch_index
+                )
+                if (self.iter + 1) % self.validation_frequency == 0:
+                    this_validation_loss = self.mean_validation_loss()
+                    self.epoch_losses.append(
+                        [
+                            this_validation_loss,
+                            self.iter
+                        ]
+                    )
+                    if this_validation_loss < self.best_validation_loss:
+                        if (
+                            this_validation_loss
+                            < self.best_validation_loss
+                            * self.improvement_threshold
+                        ):
+                            self.patience = max(
+                                self.patience, 
+                                self.iter * self.patience_increase
+                            )
+                        self.best_validation_loss = this_validation_loss
+                        self.best_iter = iter
+                        self.test_score = self.mean_test_loss()
+
+                if self.patience <= self.iter:
+                    self.done_looping = True
+                    break
+            return True
+        else:
+            return False
         
     def train(
         self,
@@ -39,10 +96,6 @@ class Trainer(object):
                 iter = (epoch - 1) * self.n_train_batches + minibatch_index
                 if (iter + 1) % validation_frequency == 0:
                     this_validation_loss = self.mean_validation_loss()
-                    print (
-                        'epoch %d validation error %f%%'
-                        % (epoch, this_validation_loss * 100.0)
-                    )
                     epoch_losses.append([this_validation_loss, iter])
                     if this_validation_loss < best_validation_loss:
                         if (
