@@ -39,8 +39,11 @@ class TestTutorials(unittest.TestCase):
 
     def test_denoising_autoencoder(self):
         da = DenoisingAutoencoderTrainer(self.dataset, training_epochs = 1, batch_size = 2)
-        uncorrupt_costs, corrupt_costs = da.evaluate()
+        da.initialize()
+        uncorrupt_costs = da.train()
         self.assertEqual(uncorrupt_costs, [149.16503228187111])
+        da.initialize(corruption_level = 0.3)
+        corrupt_costs = da.train()
         self.assertTrue(corrupt_costs[0] > 173.6649940882978 and corrupt_costs[0] < 173.6649940882979)
         
     def test_logistic(self):

@@ -97,32 +97,19 @@ class DenoisingAutoencoderTrainer(Trainer):
             corruption_level
         )
 
-        costs = self.train()
         image = Image.fromarray(tile_raster_images(X=classifier.W.get_value(borrow=True).T, img_shape=(28, 28), tile_shape=(10, 10), tile_spacing=(1, 1)))
         image.save('filters_corruption_0.png')
-        
-        return costs
-
-
-    def evaluate(self, output_folder='dA_plots'):
-        """
-        This demo is tested on MNIST
-        """
-
-        if not os.path.isdir(output_folder):
-            os.makedirs(output_folder)
-        os.chdir(output_folder)
-        
-        uncorrupt_costs = self.initialize()
-        corrupt_costs = self.initialize(corruption_level = 0.3)
-
-        os.chdir('../')
-        
-        return [uncorrupt_costs, corrupt_costs]
 
 
 if __name__ == '__main__':
     dataset = DataSet()
     dataset.load()
     da = DenoisingAutoencoderTrainer(dataset)
-    uncorrupt_costs, corrupt_costs = da.evaluate()
+    if not os.path.isdir(output_folder):
+        os.makedirs(output_folder)
+    os.chdir(output_folder)
+    
+    uncorrupt_costs = self.initialize()
+    corrupt_costs = self.initialize(corruption_level = 0.3)
+
+    os.chdir('../')
