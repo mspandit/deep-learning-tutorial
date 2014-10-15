@@ -30,21 +30,11 @@
 
 """
 
-import cPickle
-import gzip
-import os
-import sys
-import time
-
 import numpy
 
 import theano
-import theano.tensor as T
+import theano.tensor as Tensor
 from theano.tensor.shared_randomstreams import RandomStreams
-
-from utilities import tile_raster_images
-
-import Image
 
 
 class DenoisingAutoencoder(object):
@@ -163,7 +153,7 @@ class DenoisingAutoencoder(object):
         if input == None:
             # we use a matrix because we expect a minibatch of several
             # examples, each example being a row
-            self.x = T.dmatrix(name='input')
+            self.x = Tensor.dmatrix(name='input')
         else:
             self.x = input
 
@@ -198,14 +188,14 @@ class DenoisingAutoencoder(object):
 
     def get_hidden_values(self, input):
         """ Computes the values of the hidden layer """
-        return T.nnet.sigmoid(T.dot(input, self.W) + self.b)
+        return Tensor.nnet.sigmoid(Tensor.dot(input, self.W) + self.b)
 
     def get_reconstructed_input(self, hidden):
         """Computes the reconstructed input given the values of the
         hidden layer
 
         """
-        return  T.nnet.sigmoid(T.dot(hidden, self.W_prime) + self.b_prime)
+        return  Tensor.nnet.sigmoid(Tensor.dot(hidden, self.W_prime) + self.b_prime)
 
     def cost(self, corruption_level):
         """docstring for cost"""
@@ -216,110 +206,15 @@ class DenoisingAutoencoder(object):
             # note : we sum over the size of a datapoint; if we are using
             #        minibatches, L will be a vector, with one entry per
             #        example in minibatch
-            L = - T.sum(self.x * T.log(z) + (1 - self.x) * T.log(1 - z), axis=1)
+            L = - Tensor.sum(self.x * Tensor.log(z) + (1 - self.x) * Tensor.log(1 - z), axis=1)
             # note : L is now a vector, where each element is the
             #        cross-entropy cost of the reconstruction of the
             #        corresponding example of the minibatch. We need to
             #        compute the average of all these to get the cost of
             #        the minibatch
-            self.cost_fn = T.mean(L)
+            self.cost_fn = Tensor.mean(L)
         return self.cost_fn
     
     def updates(self, learning_rate, corruption_level):
         """docstring for updates"""
-        return [(param, param - learning_rate * gparam) for param, gparam in zip(self.params, T.grad(self.cost(corruption_level), self.params))]
-
-from data_set import DataSet
-
-class DenoisingAutoencoderTrainer(object):
-    """docstring for DenoisingAutoencoder"""
-    def __init__(self, dataset, training_epochs=15, learning_rate=0.1,
-                batch_size=20):
-        """
-        :type training_epochs: int
-        :param training_epochs: number of epochs used for training
-
-        :type learning_rate: float
-        :param learning_rate: learning rate used for training the DeNosing
-                              AutoEncoder
-        """
-        super(DenoisingAutoencoderTrainer, self).__init__()
-        self.dataset = dataset
-        self.training_epochs = training_epochs
-        self.learning_rate = learning_rate
-        self.batch_size = batch_size
-        
-    def train(self):
-        """TODO: Factor this into Trainer"""
-        ############
-        # TRAINING #
-        ############
-
-        # go through training epochs
-        costs = []
-        epoch = 0
-        while epoch < self.training_epochs:
-            # go through trainng set
-            c = [
-                self.train_da(batch_index)
-                for batch_index in xrange(self.n_train_batches)
-            ]
-            # print 'Training epoch %d, cost %f' % (epoch, numpy.mean(c))
-            costs.append(numpy.mean(c))
-        
-            epoch += 1
-        return costs
-        
-    def build_model(self, x, corruption_level = 0.0):
-        """docstring for build_model_0"""
-        rng = numpy.random.RandomState(123)
-        theano_rng = RandomStreams(rng.randint(2 ** 30))
-
-        da = DenoisingAutoencoder(numpy_rng = rng, theano_rng = theano_rng, input = x, n_visible = 28 * 28, n_hidden = 500)
-
-        cost = da.cost(corruption_level = corruption_level)
-        updates = da.updates(corruption_level = corruption_level, learning_rate = self.learning_rate)
-
-        self.train_da = theano.function(
-            inputs = [self.index], 
-            outputs = cost, 
-            updates = updates,
-            givens = {
-                x: self.dataset.train_set_input[self.index * self.batch_size : (self.index + 1) * self.batch_size]
-            }
-        )
-        
-        costs = self.train()
-        image = Image.fromarray(tile_raster_images(X=da.W.get_value(borrow=True).T, img_shape=(28, 28), tile_shape=(10, 10), tile_spacing=(1, 1)))
-        image.save('filters_corruption_0.png')
-        
-        return costs
-
-    def evaluate(self, output_folder='dA_plots'):
-        """
-        This demo is tested on MNIST
-        """
-        
-        # compute number of minibatches for training, validation and testing
-        self.n_train_batches = self.dataset.train_set_input.get_value(borrow=True).shape[0] / self.batch_size
-
-        # allocate symbolic variables for the data
-        self.index = T.lscalar()    # index to a [mini]batch
-        x = T.matrix('x')  # the data is presented as rasterized images
-
-        if not os.path.isdir(output_folder):
-            os.makedirs(output_folder)
-        os.chdir(output_folder)
-        
-        uncorrupt_costs = self.build_model(x)
-        corrupt_costs = self.build_model(x, corruption_level = 0.3)
-
-        os.chdir('../')
-        
-        return [uncorrupt_costs, corrupt_costs]
-
-if __name__ == '__main__':
-    dataset = DataSet()
-    dataset.load()
-    da = DenoisingAutoencoderTrainer(dataset)
-    uncorrupt_costs, corrupt_costs = da.evaluate()
+        return [(param, param - learning_rate * gparam) for param, gparam in zip(self.params, Tensor.grad(self.cost(corruption_level), self.params))]
