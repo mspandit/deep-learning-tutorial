@@ -159,7 +159,7 @@ class StackedDenoisingAutoencoder(object):
 
 
 
-    def finetune_cost(self, inputs, outputs):
+    def cost_function(self, inputs, outputs):
         """docstring for finetune_cost"""
         # compute the cost for second phase of training,
         # defined as the negative log likelihood
@@ -175,7 +175,7 @@ class StackedDenoisingAutoencoder(object):
         return self.logLayer.cost_function(prev_input, outputs)
 
 
-    def errors(self, inputs, outputs):
+    def evaluation_function(self, inputs, outputs):
         """docstring for errors"""
         prev_input = inputs
         for i in xrange(self.n_layers):
@@ -279,7 +279,7 @@ class StackedDenoisingAutoencoder(object):
         index = T.lscalar('index')  # index to a [mini]batch
 
         # compute the gradients with respect to the model parameters
-        gparams = T.grad(self.finetune_cost(inputs, outputs), self.params)
+        gparams = T.grad(self.cost_function(inputs, outputs), self.params)
 
         # compute list of fine-tuning updates
         updates = []
@@ -288,7 +288,7 @@ class StackedDenoisingAutoencoder(object):
 
         train_model = theano.function(
             inputs=[index],
-            outputs=self.finetune_cost(inputs, outputs),
+            outputs=self.cost_function(inputs, outputs),
             updates=updates,
             givens={
                 inputs: dataset.train_set_input[index * batch_size : (index + 1) * batch_size],
@@ -299,7 +299,7 @@ class StackedDenoisingAutoencoder(object):
 
         test_score_i = theano.function(
             inputs = [index], 
-            outputs = self.errors(inputs, outputs),
+            outputs = self.evaluation_function(inputs, outputs),
             givens = {
                 inputs: dataset.test_set_input[index * batch_size : (index + 1) * batch_size],
                 outputs: dataset.test_set_output[index * batch_size : (index + 1) * batch_size]
@@ -309,7 +309,7 @@ class StackedDenoisingAutoencoder(object):
 
         valid_score_i = theano.function(
             inputs = [index], 
-            outputs = self.errors(inputs, outputs),
+            outputs = self.evaluation_function(inputs, outputs),
             givens = {
                 inputs: dataset.valid_set_input[index * batch_size : (index + 1) * batch_size],
                 outputs: dataset.valid_set_output[index * batch_size : (index + 1) * batch_size]
@@ -317,13 +317,5 @@ class StackedDenoisingAutoencoder(object):
             name = 'stacked_denoising_autoencoder_validation_function'
         )
 
-        # Create a function that scans the entire validation set
-        def valid_score():
-            return [valid_score_i(i) for i in xrange(n_valid_batches)]
-
-        # Create a function that scans the entire test set
-        def test_score():
-            return [test_score_i(i) for i in xrange(n_test_batches)]
-
-        return train_model, valid_score, test_score
+        return train_model, valid_score_i, test_score_i
         

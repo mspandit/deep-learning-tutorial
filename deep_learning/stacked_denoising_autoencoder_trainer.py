@@ -78,16 +78,6 @@ class StackedDenoisingAutoencoderTrainer(Trainer):
                 epoch += 1
             layer_epoch_costs.append(epoch_costs)
         return layer_epoch_costs
-
-
-    def mean_validation_loss(self):
-        """docstring for mean_validation_loss"""
-        return numpy.mean(self.validation_eval_function())
-        
-
-    def mean_test_loss(self):
-        """docstring for mean_test_loss"""
-        return numpy.mean(self.test_eval_function())
     
 
     def train(self, patience, patience_increase = 2.0, improvement_threshold = 0.995):
