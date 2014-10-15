@@ -13,8 +13,7 @@ class ConvolutionalMultilayerPerceptronClassifier(Classifier):
         """
         """
         super(ConvolutionalMultilayerPerceptronClassifier, self).__init__()
-        
-        self.nkerns = nkerns
+
         self.batch_size = batch_size
         rng = numpy.random.RandomState(23455)
 

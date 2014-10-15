@@ -14,6 +14,7 @@ from utilities import tile_raster_images
 
 class RestrictedBoltzmannMachineTrainer(Trainer):
     """docstring for RestrictedBoltzmannMachine"""
+
     def __init__(self, dataset, training_epochs = 15,
                  batch_size = 20):
         super(RestrictedBoltzmannMachineTrainer, self).__init__(
@@ -21,7 +22,8 @@ class RestrictedBoltzmannMachineTrainer(Trainer):
             batch_size,
             training_epochs
         )
-        
+
+
     def train(self):
         """TODO: Factor this into Trainer"""
         plotting_time = 0.
@@ -81,6 +83,7 @@ class RestrictedBoltzmannMachineTrainer(Trainer):
             name = 'train_rbm'
         )
 
+
     def initialize(
         self,
         learning_rate=0.1,
@@ -96,9 +99,8 @@ class RestrictedBoltzmannMachineTrainer(Trainer):
         inputs = Tensor.matrix('inputs')
 
         rng = numpy.random.RandomState(123)
-        
+
         self.rbm = RestrictedBoltzmannMachine(
-            # input=inputs,
             n_visible=28 * 28,
             n_hidden=n_hidden,
             numpy_rng=rng,
@@ -120,6 +122,7 @@ class RestrictedBoltzmannMachineTrainer(Trainer):
             ),
             learning_rate
         )
+
 
     def sample(self):
         """docstring for sample"""
@@ -174,6 +177,7 @@ class RestrictedBoltzmannMachineTrainer(Trainer):
         image = Image.fromarray(image_data)
         image.save('samples.png')
         os.chdir('../')
+
 
 from data_set import DataSet
 

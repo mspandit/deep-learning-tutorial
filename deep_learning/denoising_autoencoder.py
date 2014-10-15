@@ -240,4 +240,10 @@ class DenoisingAutoencoder(object):
     
     def updates(self, inputs, learning_rate, corruption_level):
         """docstring for updates"""
-        return [(param, param - learning_rate * gparam) for param, gparam in zip(self.params, Tensor.grad(self.cost(inputs, corruption_level), self.params))]
+        return [
+            (param, param - learning_rate * gparam) 
+            for param, gparam in zip(
+                self.params,
+                Tensor.grad(self.cost(inputs, corruption_level), self.params)
+            )
+        ]

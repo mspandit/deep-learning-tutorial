@@ -10,7 +10,14 @@ class StackedDenoisingAutoencoderTrainer(Trainer):
     """docstring for StackedDenoisingAutoencoder"""
 
 
-    def __init__(self, dataset, pretraining_epochs = 15, n_epochs = 1000, batch_size = 1, pretrain_lr = 0.001):
+    def __init__(
+        self,
+        dataset,
+        pretraining_epochs=15,
+        n_epochs=1000,
+        batch_size=1,
+        pretrain_lr=0.001
+    ):
         """
         :type pretraining_epochs: int
         :param pretraining_epochs: number of epoch to do pretraining
@@ -18,12 +25,23 @@ class StackedDenoisingAutoencoderTrainer(Trainer):
         :type pretrain_lr: float
         :param pretrain_lr: learning rate to be used during pre-training
         """
-        super(StackedDenoisingAutoencoderTrainer, self).__init__(dataset, batch_size, n_epochs)
+        super(StackedDenoisingAutoencoderTrainer, self).__init__(
+            dataset,
+            batch_size,
+            n_epochs
+        )
         self.pretraining_epochs = pretraining_epochs
         self.pretrain_lr = pretrain_lr
 
 
-    def compiled_pretraining_functions(self, classifier, minibatch_index, train_set_input, inputs, outputs):
+    def compiled_pretraining_functions(
+        self,
+        classifier,
+        minibatch_index,
+        train_set_input,
+        inputs,
+        outputs
+    ):
         ''' Generates a list of functions, each of them implementing one
         step in trainnig the dA corresponding to the layer with same index.
         The function will require as input the minibatch index, and to train
@@ -78,11 +96,6 @@ class StackedDenoisingAutoencoderTrainer(Trainer):
 
     def preinitialize(self):
         """docstring for preinitialize"""
-        # compute number of minibatches for training, validation and testing
-        self.n_train_batches = self.dataset.train_set_input.get_value(borrow=True).shape[0] / self.batch_size
-
-        # numpy random generator
-        self.numpy_rng = numpy.random.RandomState(89677)
 
         minibatch_index = Tensor.lscalar('minibatch_index')
         inputs = Tensor.matrix('inputs')
@@ -90,7 +103,7 @@ class StackedDenoisingAutoencoderTrainer(Trainer):
 
         # construct the stacked denoising autoencoder class
         self.sda = StackedDenoisingAutoencoder(
-            numpy_rng = self.numpy_rng, 
+            numpy_rng = numpy.random.RandomState(89677), 
             n_ins = 28 * 28,
             hidden_layers_sizes = [1000, 1000, 1000],
             n_outs=10
@@ -157,7 +170,6 @@ class StackedDenoisingAutoencoderTrainer(Trainer):
         outputs = Tensor.ivector('outputs')
         minibatch_index = Tensor.lscalar('minibatch_index')
 
-        # get the training, validation and testing function for the model
         self.training_function = self.compiled_training_function(
             self.sda,
             minibatch_index,

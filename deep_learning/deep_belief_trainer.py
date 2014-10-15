@@ -90,20 +90,16 @@ class DeepBeliefNetworkTrainer(Trainer):
         :param k: number of Gibbs steps in CD/PCD
         """
 
-        # numpy random generator
-        numpy_rng = numpy.random.RandomState(123)
+        minibatch_index = Tensor.lscalar()
+        inputs = Tensor.matrix('inputs')
+        outputs = Tensor.ivector('outputs')
 
-        # construct the Deep Belief Network
         self.dbn = DBN(
-            numpy_rng=numpy_rng,
+            numpy_rng=numpy.random.RandomState(123),
             n_ins=28 * 28,
             hidden_layers_sizes=[1000, 1000, 1000],
             n_outs=10
         )
-
-        minibatch_index = Tensor.lscalar()
-        inputs = Tensor.matrix('inputs')
-        outputs = Tensor.ivector('outputs')
 
         self.pretraining_fns = self.dbn.pretraining_functions(
             inputs,
