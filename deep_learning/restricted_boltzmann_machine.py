@@ -28,7 +28,6 @@ class RestrictedBoltzmannMachine(Classifier):
         converted using asarray to dtype theano.config.floatX so
         that the code is runable on GPU
         """
-
         self.rng = (
             numpy.random.RandomState(1234) 
             if numpy_rng is None 

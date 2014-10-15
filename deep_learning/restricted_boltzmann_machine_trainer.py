@@ -95,41 +95,28 @@ class RestrictedBoltzmannMachineTrainer(Trainer):
         inputs = Tensor.matrix('inputs')
 
         rng = numpy.random.RandomState(123)
-        theano_rng = RandomStreams(rng.randint(2 ** 30))
-
-        # initialize storage for the persistent chain (state = hidden
-        # layer of chain)
-        persistent_chain = theano.shared(
-            numpy.zeros(
-                (self.batch_size, n_hidden),
-                dtype=theano.config.floatX
-            ),
-            borrow=True
-        )
-
-        # construct the RBM class
+        
         self.rbm = RestrictedBoltzmannMachine(
             input=inputs,
             n_visible=28 * 28,
             n_hidden=n_hidden,
             numpy_rng=rng,
-            theano_rng=theano_rng
+            theano_rng=RandomStreams(rng.randint(2 ** 30))
         )
 
-        #################################
-        #     Training the RBM          #
-        #################################
-        if not os.path.isdir(output_folder):
-            os.makedirs(output_folder)
-        os.chdir(output_folder)
-
-        # it is ok for a theano function to have no output
-        # the purpose of train_rbm is solely to update the RBM parameters
         self.training_function = self.compiled_training_function(
             self.rbm,
             minibatch_index,
             inputs,
-            persistent_chain,
+            # initialize storage for the persistent chain (state = hidden
+            # layer of chain)
+            theano.shared(
+                numpy.zeros(
+                    (self.batch_size, n_hidden),
+                    dtype=theano.config.floatX
+                ),
+                borrow=True
+            ),
             learning_rate
         )
 
@@ -193,6 +180,11 @@ if __name__ == '__main__':
     dataset = DataSet()
     dataset.load()
     rbm = RestrictedBoltzmannMachine(dataset)
+
+    if not os.path.isdir(output_folder):
+        os.makedirs(output_folder)
+    os.chdir(output_folder)
+
     rbm.initialize()
 
     start_time = time.clock()
