@@ -1,4 +1,5 @@
 import numpy
+import theano.tensor as Tensor
 from data_set import DataSet
 from trainer import Trainer
 from stacked_denoising_autoencoder import StackedDenoisingAutoencoder
@@ -29,6 +30,9 @@ class StackedDenoisingAutoencoderTrainer(Trainer):
         # numpy random generator
         self.numpy_rng = numpy.random.RandomState(89677)
 
+        inputs = Tensor.matrix('inputs')
+        outputs = Tensor.ivector('outputs')
+
         # construct the stacked denoising autoencoder class
         self.sda = StackedDenoisingAutoencoder(
             numpy_rng = self.numpy_rng, 
@@ -41,8 +45,10 @@ class StackedDenoisingAutoencoderTrainer(Trainer):
         # PRETRAINING THE MODEL #
         #########################
         self.pretraining_fns = self.sda.pretraining_functions(
-            train_set_input = self.dataset.train_set_input,
-            batch_size = self.batch_size
+            train_set_input=self.dataset.train_set_input,
+            batch_size=self.batch_size,
+            inputs=inputs,
+            outputs=outputs
         )
     
 
@@ -103,15 +109,17 @@ class StackedDenoisingAutoencoderTrainer(Trainer):
         :type n_iter: int
         :param n_iter: maximal number of iterations ot run the optimizer
         """
-        ########################
-        # FINETUNING THE MODEL #
-        ########################
+
+        inputs = Tensor.matrix('inputs')
+        outputs = Tensor.ivector('outputs')
 
         # get the training, validation and testing function for the model
         self.training_function, self.validation_eval_function, self.test_eval_function = self.sda.build_finetune_functions(
-            dataset = self.dataset, 
-            batch_size = self.batch_size,
-            learning_rate = finetune_lr
+            dataset=self.dataset, 
+            batch_size=self.batch_size,
+            inputs=inputs,
+            outputs=outputs,
+            learning_rate=finetune_lr
         )
         
 

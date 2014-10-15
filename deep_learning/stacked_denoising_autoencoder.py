@@ -100,10 +100,6 @@ class StackedDenoisingAutoencoder(object):
 
         if not theano_rng:
             theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
-        # allocate symbolic variables for the data
-        self.x = T.matrix('x')  # the data is presented as rasterized images
-        self.y = T.ivector('y')  # the labels are presented as 1D vector of
-                                 # [int] labels
 
         # The SdA is an MLP, for which all weights of intermediate layers
         # are shared with a different denoising autoencoders
@@ -124,17 +120,6 @@ class StackedDenoisingAutoencoder(object):
                 input_size = n_ins
             else:
                 input_size = hidden_layers_sizes[i - 1]
-
-            # the input to this layer is either the activation of the hidden
-            # layer below or the input of the SdA if you are on the first
-            # layer
-            if i == 0:
-                layer_input = self.x
-            else:
-                layer_input = (
-                    self.sigmoid_layers[-1]
-                    .output_probabilities_function(layer_input)
-                )
 
             sigmoid_layer = HiddenLayer(
                 rng=numpy_rng,
@@ -172,9 +157,13 @@ class StackedDenoisingAutoencoder(object):
         self.params.extend(self.logLayer.parameters)
         # construct a function that implements one step of finetunining
 
+
+
+    def finetune_cost(self, inputs, outputs):
+        """docstring for finetune_cost"""
         # compute the cost for second phase of training,
         # defined as the negative log likelihood
-        prev_input = self.x
+        prev_input = inputs
         for i in xrange(self.n_layers):
             # the input to this layer is either the activation of the
             # hidden layer below or the input of the DBN if you are on
@@ -183,13 +172,27 @@ class StackedDenoisingAutoencoder(object):
                 self.sigmoid_layers[i]
                 .output_probabilities_function(prev_input)
             )
-        self.finetune_cost = self.logLayer.cost_function(prev_input, self.y)
+        return self.logLayer.cost_function(prev_input, outputs)
+
+
+    def errors(self, inputs, outputs):
+        """docstring for errors"""
+        prev_input = inputs
+        for i in xrange(self.n_layers):
+            # the input to this layer is either the activation of the
+            # hidden layer below or the input of the DBN if you are on
+            # the first layer
+            prev_input = (
+                self.sigmoid_layers[i]
+                .output_probabilities_function(prev_input)
+            )
         # compute the gradients with respect to the model parameters
         # symbolic variable that points to the number of errors made on the
         # minibatch given by self.x and self.y
-        self.errors = self.logLayer.evaluation_function(prev_input, self.y)
+        return self.logLayer.evaluation_function(prev_input, outputs)
 
-    def pretraining_functions(self, train_set_input, batch_size):
+
+    def pretraining_functions(self, train_set_input, batch_size, inputs, outputs):
         ''' Generates a list of functions, each of them implementing one
         step in trainnig the dA corresponding to the layer with same index.
         The function will require as input the minibatch index, and to train
@@ -220,7 +223,7 @@ class StackedDenoisingAutoencoder(object):
         batch_end = batch_begin + batch_size
 
         pretrain_models = []
-        prev_input = self.x
+        prev_input = inputs
         for i in xrange(self.n_layers):
             # get the cost and the updates list
             cost = self.dA_layers[i].cost(prev_input, corruption_level)
@@ -235,7 +238,7 @@ class StackedDenoisingAutoencoder(object):
                 outputs = cost,
                 updates = updates,
                 givens = {
-                    self.x: train_set_input[batch_begin : batch_end]
+                    inputs: train_set_input[batch_begin : batch_end]
                 }
             )
             prev_input = (
@@ -247,7 +250,7 @@ class StackedDenoisingAutoencoder(object):
 
         return pretrain_models
 
-    def build_finetune_functions(self, dataset, batch_size, learning_rate):
+    def build_finetune_functions(self, dataset, batch_size, inputs, outputs, learning_rate):
         '''Generates a function `train` that implements one step of
         finetuning, a function `validate` that computes the error on
         a batch from the validation set, and a function `test` that
@@ -276,41 +279,42 @@ class StackedDenoisingAutoencoder(object):
         index = T.lscalar('index')  # index to a [mini]batch
 
         # compute the gradients with respect to the model parameters
-        gparams = T.grad(self.finetune_cost, self.params)
+        gparams = T.grad(self.finetune_cost(inputs, outputs), self.params)
 
         # compute list of fine-tuning updates
         updates = []
         for param, gparam in zip(self.params, gparams):
             updates.append((param, param - gparam * learning_rate))
 
-        train_model = theano.function(inputs=[index],
-            outputs = self.finetune_cost,
-            updates = updates,
-            givens = {
-                self.x: dataset.train_set_input[index * batch_size : (index + 1) * batch_size],
-                self.y: dataset.train_set_output[index * batch_size : (index + 1) * batch_size]
+        train_model = theano.function(
+            inputs=[index],
+            outputs=self.finetune_cost(inputs, outputs),
+            updates=updates,
+            givens={
+                inputs: dataset.train_set_input[index * batch_size : (index + 1) * batch_size],
+                outputs: dataset.train_set_output[index * batch_size : (index + 1) * batch_size]
             },
-            name = 'train'
+            name='stacked_denoising_autoencoder_training_function'
         )
 
         test_score_i = theano.function(
             inputs = [index], 
-            outputs = self.errors,
+            outputs = self.errors(inputs, outputs),
             givens = {
-                self.x: dataset.test_set_input[index * batch_size : (index + 1) * batch_size],
-                self.y: dataset.test_set_output[index * batch_size : (index + 1) * batch_size]
+                inputs: dataset.test_set_input[index * batch_size : (index + 1) * batch_size],
+                outputs: dataset.test_set_output[index * batch_size : (index + 1) * batch_size]
             },
-            name = 'test'
+            name = 'stacked_denoising_autoencoder_test_function'
         )
 
         valid_score_i = theano.function(
             inputs = [index], 
-            outputs = self.errors,
+            outputs = self.errors(inputs, outputs),
             givens = {
-                self.x: dataset.valid_set_input[index * batch_size : (index + 1) * batch_size],
-                self.y: dataset.valid_set_output[index * batch_size : (index + 1) * batch_size]
+                inputs: dataset.valid_set_input[index * batch_size : (index + 1) * batch_size],
+                outputs: dataset.valid_set_output[index * batch_size : (index + 1) * batch_size]
             },
-            name = 'valid'
+            name = 'stacked_denoising_autoencoder_validation_function'
         )
 
         # Create a function that scans the entire validation set
