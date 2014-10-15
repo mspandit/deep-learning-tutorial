@@ -93,21 +93,33 @@ class DenoisingAutoencoder(object):
 
     def initialize_biases(self, n_hidden, n_visible, bhid, bvis):
         """docstring for initialize_biases"""
-        if not bvis:
-            bvis = theano.shared(value=numpy.zeros(n_visible,
-                                         dtype=theano.config.floatX),
-                                 borrow=True)
-
-        if not bhid:
-            bhid = theano.shared(value=numpy.zeros(n_hidden,
-                                                   dtype=theano.config.floatX),
-                                 name='b',
-                                 borrow=True)
 
         # b corresponds to the bias of the hidden
-        self.b = bhid
+        self.b = (
+            theano.shared(
+                value=numpy.zeros(
+                   n_hidden,
+                   dtype=theano.config.floatX
+                ),
+                name='b',
+                borrow=True
+            )
+            if not bhid
+            else bhid
+        )
+
         # b_prime corresponds to the bias of the visible
-        self.b_prime = bvis
+        self.b_prime = (
+            theano.shared(
+                value=numpy.zeros(
+                    n_visible,
+                    dtype=theano.config.floatX
+                ),
+                borrow=True
+            )
+            if not bvis
+            else bvis
+        )
 
 
     def __init__(self, numpy_rng, theano_rng=None,
@@ -159,9 +171,11 @@ class DenoisingAutoencoder(object):
         self.n_hidden = n_hidden
 
         # create a Theano random generator that gives symbolic random values
-        if not theano_rng:
-            theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
-        self.theano_rng = theano_rng
+        self.theano_rng = (
+            RandomStreams(numpy_rng.randint(2 ** 30))
+            if not theano_rng
+            else theano_rng
+        )
 
         self.initialize_weights(numpy_rng, n_hidden, n_visible, W)
         self.initialize_biases(n_hidden, n_visible, bhid, bvis)

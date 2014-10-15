@@ -48,7 +48,7 @@ class DenoisingAutoencoderTrainer(Trainer):
         while epoch < self.n_epochs:
             # go through trainng set
             c = [
-                self.train_da(batch_index)
+                self.training_function(batch_index)
                 for batch_index in xrange(self.n_train_batches)
             ]
             # print 'Training epoch %d, cost %f' % (epoch, numpy.mean(c))
@@ -58,7 +58,22 @@ class DenoisingAutoencoderTrainer(Trainer):
         return costs
 
 
-    def build_model(self, corruption_level = 0.0):
+    def compiled_training_function(self, classifier, minibatch_index, inputs, learning_rate, corruption_level):
+        """docstring for compiled_training_function"""
+
+        return theano.function(
+            inputs=[minibatch_index],
+            outputs=classifier.cost(inputs, corruption_level=corruption_level),
+            updates=classifier.updates(inputs, corruption_level=corruption_level,
+                learning_rate=learning_rate
+            ),
+            givens={
+                inputs: self.dataset.train_set_input[minibatch_index * self.batch_size : (minibatch_index + 1) * self.batch_size]
+            }
+        )
+
+
+    def initialize(self, learning_rate=0.1, corruption_level = 0.0):
         """docstring for build_model_0"""
 
         minibatch_index = Tensor.lscalar('minibatch_index')
@@ -67,22 +82,23 @@ class DenoisingAutoencoderTrainer(Trainer):
         rng = numpy.random.RandomState(123)
         theano_rng = RandomStreams(rng.randint(2 ** 30))
 
-        da = DenoisingAutoencoder(numpy_rng = rng, theano_rng = theano_rng, n_visible = 28 * 28, n_hidden = 500)
-
-        cost = da.cost(inputs, corruption_level = corruption_level)
-        updates = da.updates(inputs, corruption_level = corruption_level, learning_rate = self.learning_rate)
-
-        self.train_da = theano.function(
-            inputs = [minibatch_index], 
-            outputs = cost, 
-            updates = updates,
-            givens = {
-                inputs: self.dataset.train_set_input[minibatch_index * self.batch_size : (minibatch_index + 1) * self.batch_size]
-            }
+        classifier = DenoisingAutoencoder(
+            numpy_rng=rng,
+            theano_rng=theano_rng,
+            n_visible=28 * 28,
+            n_hidden=500
         )
-        
+
+        self.training_function = self.compiled_training_function(
+            classifier,
+            minibatch_index,
+            inputs,
+            learning_rate,
+            corruption_level
+        )
+
         costs = self.train()
-        image = Image.fromarray(tile_raster_images(X=da.W.get_value(borrow=True).T, img_shape=(28, 28), tile_shape=(10, 10), tile_spacing=(1, 1)))
+        image = Image.fromarray(tile_raster_images(X=classifier.W.get_value(borrow=True).T, img_shape=(28, 28), tile_shape=(10, 10), tile_spacing=(1, 1)))
         image.save('filters_corruption_0.png')
         
         return costs
@@ -97,8 +113,8 @@ class DenoisingAutoencoderTrainer(Trainer):
             os.makedirs(output_folder)
         os.chdir(output_folder)
         
-        uncorrupt_costs = self.build_model()
-        corrupt_costs = self.build_model(corruption_level = 0.3)
+        uncorrupt_costs = self.initialize()
+        corrupt_costs = self.initialize(corruption_level = 0.3)
 
         os.chdir('../')
         

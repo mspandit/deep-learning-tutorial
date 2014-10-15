@@ -132,6 +132,7 @@ class Trainer(object):
         learning_rate
     ):
         """docstring for initialize_training_function"""
+
         return theano.function(
             inputs=[minibatch_index],
             outputs=classifier.cost_function(inputs, outputs),

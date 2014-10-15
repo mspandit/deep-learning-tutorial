@@ -34,7 +34,8 @@ class LogisticTrainer(Trainer):
             inputs,
             outputs
         )
-        self.training_function = self.compiled_training_function(classifier,
+        self.training_function = self.compiled_training_function(
+            classifier,
             minibatch_index,
             inputs,
             outputs,
