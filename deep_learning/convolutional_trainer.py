@@ -61,23 +61,18 @@ class ConvolutionalMultilayerPerceptronTrainer(Trainer):
         :param learning_rate: learning rate used (factor for the stochastic
                               gradient)
 
-        :type n_epochs: int
-        :param n_epochs: maximal number of epochs to run the optimizer
-
         :type nkerns: list of ints
         :param nkerns: number of kernels on each layer
         """
+
+        minibatch_index = Tensor.lscalar()
+        inputs = Tensor.matrix('inputs')
+        outputs = Tensor.ivector('outputs')
+
         classifier = ConvolutionalMultilayerPerceptronClassifier(
             self.batch_size,
             nkerns
         )
-
-        # allocate symbolic variables for the data
-        minibatch_index = Tensor.lscalar()  # index to a [mini]batch
-        inputs = Tensor.matrix('inputs')
-        outputs = Tensor.ivector('outputs')
-
-        ishape = (28, 28)  # this is the size of MNIST images
 
         # create a function to compute the mistakes that are made by the model
         self.test_eval_function = self.compiled_test_function(

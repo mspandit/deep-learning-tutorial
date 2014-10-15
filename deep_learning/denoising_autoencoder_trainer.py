@@ -58,8 +58,12 @@ class DenoisingAutoencoderTrainer(Trainer):
         return costs
 
 
-    def build_model(self, inputs, corruption_level = 0.0):
+    def build_model(self, corruption_level = 0.0):
         """docstring for build_model_0"""
+
+        minibatch_index = Tensor.lscalar('minibatch_index')
+        inputs = Tensor.matrix('denoising_autoencoder_inputs')
+
         rng = numpy.random.RandomState(123)
         theano_rng = RandomStreams(rng.randint(2 ** 30))
 
@@ -69,11 +73,11 @@ class DenoisingAutoencoderTrainer(Trainer):
         updates = da.updates(inputs, corruption_level = corruption_level, learning_rate = self.learning_rate)
 
         self.train_da = theano.function(
-            inputs = [self.index], 
+            inputs = [minibatch_index], 
             outputs = cost, 
             updates = updates,
             givens = {
-                inputs: self.dataset.train_set_input[self.index * self.batch_size : (self.index + 1) * self.batch_size]
+                inputs: self.dataset.train_set_input[minibatch_index * self.batch_size : (minibatch_index + 1) * self.batch_size]
             }
         )
         
@@ -88,20 +92,13 @@ class DenoisingAutoencoderTrainer(Trainer):
         """
         This demo is tested on MNIST
         """
-        
-        # compute number of minibatches for training, validation and testing
-        self.n_train_batches = self.dataset.train_set_input.get_value(borrow=True).shape[0] / self.batch_size
-
-        # allocate symbolic variables for the data
-        self.index = Tensor.lscalar()    # index to a [mini]batch
-        x = Tensor.matrix('x')  # the data is presented as rasterized images
 
         if not os.path.isdir(output_folder):
             os.makedirs(output_folder)
         os.chdir(output_folder)
         
-        uncorrupt_costs = self.build_model(x)
-        corrupt_costs = self.build_model(x, corruption_level = 0.3)
+        uncorrupt_costs = self.build_model()
+        corrupt_costs = self.build_model(corruption_level = 0.3)
 
         os.chdir('../')
         

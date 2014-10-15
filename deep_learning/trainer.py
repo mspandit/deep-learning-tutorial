@@ -14,6 +14,9 @@ class Trainer(object):
         self.n_test_batches = self.dataset.test_set_input.get_value(
             borrow=True
         ).shape[0] / self.batch_size
+        self.n_train_batches = self.dataset.train_set_input.get_value(
+            borrow=True
+        ).shape[0] / self.batch_size
         
     def train(
         self,
@@ -22,21 +25,18 @@ class Trainer(object):
         improvement_threshold=0.995
     ):
         """docstring for train"""
-        n_train_batches = self.dataset.train_set_input.get_value(
-            borrow=True
-        ).shape[0] / self.batch_size
         best_validation_loss = numpy.inf
         best_iter = 0
         test_score = 0.
-        validation_frequency = min(n_train_batches, patience / 2)
+        validation_frequency = min(self.n_train_batches, patience / 2)
         epoch = 0
         epoch_losses = []
         done_looping = False
         while (epoch < self.n_epochs) and (not done_looping):
             epoch = epoch + 1
-            for minibatch_index in xrange(n_train_batches):
+            for minibatch_index in xrange(self.n_train_batches):
                 self.training_function(minibatch_index)
-                iter = (epoch - 1) * n_train_batches + minibatch_index
+                iter = (epoch - 1) * self.n_train_batches + minibatch_index
                 if (iter + 1) % validation_frequency == 0:
                     this_validation_loss = self.mean_validation_loss()
                     print (
