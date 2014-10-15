@@ -138,7 +138,6 @@ class StackedDenoisingAutoencoder(object):
 
             sigmoid_layer = HiddenLayer(
                 rng=numpy_rng,
-                # input=layer_input,
                 input_units=input_size,
                 output_units=hidden_layers_sizes[i],
                 nonlinear_function=T.nnet.sigmoid
@@ -157,7 +156,6 @@ class StackedDenoisingAutoencoder(object):
             dA_layer = DenoisingAutoencoder(
                 numpy_rng=numpy_rng,
                 theano_rng=theano_rng,
-                input=layer_input,
                 n_visible=input_size,
                 n_hidden=hidden_layers_sizes[i],
                 W=sigmoid_layer.weights,
@@ -222,10 +220,11 @@ class StackedDenoisingAutoencoder(object):
         batch_end = batch_begin + batch_size
 
         pretrain_models = []
-        for dA in self.dA_layers:
+        prev_input = self.x
+        for i in xrange(self.n_layers):
             # get the cost and the updates list
-            cost = dA.cost(corruption_level)
-            updates = dA.updates(learning_rate, corruption_level)
+            cost = self.dA_layers[i].cost(prev_input, corruption_level)
+            updates = self.dA_layers[i].updates(prev_input, learning_rate, corruption_level)
             # compile the theano function
             fn = theano.function(
                 inputs = [
@@ -238,6 +237,10 @@ class StackedDenoisingAutoencoder(object):
                 givens = {
                     self.x: train_set_input[batch_begin : batch_end]
                 }
+            )
+            prev_input = (
+                self.sigmoid_layers[i]
+                .output_probabilities_function(prev_input)
             )
             # append `fn` to the list of functions
             pretrain_models.append(fn)

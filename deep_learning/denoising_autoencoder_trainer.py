@@ -58,22 +58,22 @@ class DenoisingAutoencoderTrainer(Trainer):
         return costs
 
 
-    def build_model(self, x, corruption_level = 0.0):
+    def build_model(self, inputs, corruption_level = 0.0):
         """docstring for build_model_0"""
         rng = numpy.random.RandomState(123)
         theano_rng = RandomStreams(rng.randint(2 ** 30))
 
-        da = DenoisingAutoencoder(numpy_rng = rng, theano_rng = theano_rng, input = x, n_visible = 28 * 28, n_hidden = 500)
+        da = DenoisingAutoencoder(numpy_rng = rng, theano_rng = theano_rng, n_visible = 28 * 28, n_hidden = 500)
 
-        cost = da.cost(corruption_level = corruption_level)
-        updates = da.updates(corruption_level = corruption_level, learning_rate = self.learning_rate)
+        cost = da.cost(inputs, corruption_level = corruption_level)
+        updates = da.updates(inputs, corruption_level = corruption_level, learning_rate = self.learning_rate)
 
         self.train_da = theano.function(
             inputs = [self.index], 
             outputs = cost, 
             updates = updates,
             givens = {
-                x: self.dataset.train_set_input[self.index * self.batch_size : (self.index + 1) * self.batch_size]
+                inputs: self.dataset.train_set_input[self.index * self.batch_size : (self.index + 1) * self.batch_size]
             }
         )
         

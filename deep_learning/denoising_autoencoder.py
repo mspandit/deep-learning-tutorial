@@ -61,7 +61,7 @@ class DenoisingAutoencoder(object):
 
     """
 
-    def __init__(self, numpy_rng, theano_rng=None, input=None,
+    def __init__(self, numpy_rng, theano_rng=None,
                  n_visible=784, n_hidden=500,
                  W=None, bhid=None, bvis=None):
         """
@@ -82,10 +82,6 @@ class DenoisingAutoencoder(object):
         :type theano_rng: theano.tensor.shared_randomstreams.RandomStreams
         :param theano_rng: Theano random generator; if None is given one is
                      generated based on a seed drawn from `rng`
-
-        :type input: theano.tensor.TensorType
-        :param input: a symbolic description of the input or None for
-                      standalone dA
 
         :type n_visible: int
         :param n_visible: number of visible units
@@ -149,13 +145,6 @@ class DenoisingAutoencoder(object):
         # tied weights, therefore W_prime is W transpose
         self.W_prime = self.W.T
         self.theano_rng = theano_rng
-        # if no input is given, generate a variable representing the input
-        if input == None:
-            # we use a matrix because we expect a minibatch of several
-            # examples, each example being a row
-            self.x = Tensor.dmatrix(name='input')
-        else:
-            self.x = input
 
         self.params = [self.W, self.b, self.b_prime]
         self.cost_fn = None
@@ -197,16 +186,16 @@ class DenoisingAutoencoder(object):
         """
         return  Tensor.nnet.sigmoid(Tensor.dot(hidden, self.W_prime) + self.b_prime)
 
-    def cost(self, corruption_level):
+    def cost(self, inputs, corruption_level):
         """docstring for cost"""
         if self.cost_fn == None:
-            tilde_x = self.get_corrupted_input(self.x, corruption_level)
+            tilde_x = self.get_corrupted_input(inputs, corruption_level)
             y = self.get_hidden_values(tilde_x)
             z = self.get_reconstructed_input(y)
             # note : we sum over the size of a datapoint; if we are using
             #        minibatches, L will be a vector, with one entry per
             #        example in minibatch
-            L = - Tensor.sum(self.x * Tensor.log(z) + (1 - self.x) * Tensor.log(1 - z), axis=1)
+            L = - Tensor.sum(inputs * Tensor.log(z) + (1 - inputs) * Tensor.log(1 - z), axis=1)
             # note : L is now a vector, where each element is the
             #        cross-entropy cost of the reconstruction of the
             #        corresponding example of the minibatch. We need to
@@ -215,6 +204,6 @@ class DenoisingAutoencoder(object):
             self.cost_fn = Tensor.mean(L)
         return self.cost_fn
     
-    def updates(self, learning_rate, corruption_level):
+    def updates(self, inputs, learning_rate, corruption_level):
         """docstring for updates"""
-        return [(param, param - learning_rate * gparam) for param, gparam in zip(self.params, Tensor.grad(self.cost(corruption_level), self.params))]
+        return [(param, param - learning_rate * gparam) for param, gparam in zip(self.params, Tensor.grad(self.cost(inputs, corruption_level), self.params))]
