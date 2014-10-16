@@ -43,7 +43,46 @@ class DeepBeliefNetworkTrainer(Trainer):
         self.n_train_batches = self.dataset.train_set_input.get_value(
             borrow=True
         ).shape[0] / self.batch_size
-        
+
+
+    class State(object):
+        """docstring for DeepBeliefNetworkTrainingState"""
+        def __init__(self, n_layers, n_train_batches, pretraining_epochs):
+            super(DeepBeliefNetworkTrainer.State, self).__init__()
+            self.n_train_batches = n_train_batches
+            self.pretraining_epochs = pretraining_epochs
+            self.layer_epoch_costs = []
+            self.layer_epoch_combos = [[i, j] for i in xrange(n_layers) for j in xrange(pretraining_epochs)]
+            self.layer_epoch_index = 0
+
+        def current_layer(self):
+            """docstring for current_layer"""
+            return self.layer_epoch_combos[self.layer_epoch_index][0]
+
+        def continue_pretraining(self):
+            """docstring for continue_pretraining"""
+            return self.layer_epoch_index < len(self.layer_epoch_combos)
+
+    def start_pretraining(self):
+        """docstring for start_pretraining"""
+        return DeepBeliefNetworkTrainer.State(self.dbn.n_layers, self.n_train_batches, self.pretraining_epochs)
+
+    def continue_pretraining(self, state):
+        """docstring for continue_pretraining"""
+        if state.continue_pretraining():
+            layer_costs = [
+                self.pretraining_fns[state.current_layer()](
+                    index = batch_index,
+                    lr = self.pretrain_lr
+                )
+                for batch_index in xrange(self.n_train_batches)
+            ]
+            state.layer_epoch_costs.append(numpy.mean(layer_costs))
+            state.layer_epoch_index += 1
+            return True
+        else:
+            return False
+
     def pretrain(self):
         """TODO: Factor this into Trainer."""
 

@@ -31,7 +31,7 @@ class TestTutorials(unittest.TestCase):
             pass
         self.assertEqual(state.epoch_losses, [[0.52000000000000002, 49]])
         self.assertEqual(state.test_score, 0.45000000000000001)
-        
+
     def test_deep_belief_network(self):
         dbn = DeepBeliefNetworkTrainer(self.dataset, batch_size = 2, pretraining_epochs = 1, training_epochs = 1)
         dbn.initialize()
@@ -45,6 +45,32 @@ class TestTutorials(unittest.TestCase):
         self.assertEqual(best_validation_loss, 0.79)
         self.assertEqual(best_iter, 49)
         self.assertEqual(test_score, 0.76)
+
+    def test_deep_belief_network_incremental(self):
+        dbn = DeepBeliefNetworkTrainer(self.dataset, batch_size = 2, pretraining_epochs = 1, training_epochs = 1)
+        dbn.initialize()
+        state = dbn.start_pretraining()
+        while dbn.continue_pretraining(state):
+            pass
+        self.assertTrue(
+            state.layer_epoch_costs[0] > -229.574659742916
+            and state.layer_epoch_costs[0] < -229.574659742915
+        )
+        self.assertTrue(
+            state.layer_epoch_costs[1] > -724.564076667859
+            and state.layer_epoch_costs[1] < -724.564076667856
+        )
+        self.assertTrue(
+            state.layer_epoch_costs[2] > -237.068920458976
+            and state.layer_epoch_costs[2] < -237.068920458975
+        )
+
+        state = dbn.start_training()
+        while dbn.continue_training(state):
+            pass
+        self.assertEqual(state.best_validation_loss, 0.79)
+        self.assertEqual(state.best_iter, 49)
+        self.assertEqual(state.test_score, 0.76)
 
     def test_denoising_autoencoder(self):
         da = DenoisingAutoencoderTrainer(self.dataset, training_epochs = 1, batch_size = 2)
