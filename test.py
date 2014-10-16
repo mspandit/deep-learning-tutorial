@@ -53,7 +53,26 @@ class TestTutorials(unittest.TestCase):
         self.assertEqual(uncorrupt_costs, [149.16503228187111])
         da.initialize(corruption_level = 0.3)
         corrupt_costs = da.train()
-        self.assertTrue(corrupt_costs[0] > 173.6649940882978 and corrupt_costs[0] < 173.6649940882979)
+        self.assertTrue(
+            corrupt_costs[0] > 173.6649940882978 
+            and corrupt_costs[0] < 173.6649940882979
+        )
+
+    def test_denoising_autoencoder_incremental(self):
+        da = DenoisingAutoencoderTrainer(self.dataset, training_epochs = 1, batch_size = 2)
+        da.initialize()
+        state = da.start_training()
+        while da.continue_training(state):
+            pass
+        self.assertEqual(state.costs, [149.16503228187111])
+        da.initialize(corruption_level = 0.3)
+        state = da.start_training()
+        while da.continue_training(state):
+            pass
+        self.assertTrue(
+            state.costs[0] > 173.6649940882978
+            and state.costs[0] < 173.6649940882979
+        )
         
     def test_logistic(self):
         lc = LogisticTrainer(self.dataset, batch_size = 2, n_epochs = 1)
