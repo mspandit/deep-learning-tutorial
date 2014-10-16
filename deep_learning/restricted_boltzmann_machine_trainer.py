@@ -6,11 +6,12 @@ import numpy
 import theano
 import theano.tensor as Tensor
 from trainer import Trainer
+from trainer import TrainingState
 from theano.tensor.shared_randomstreams import RandomStreams
 
 from restricted_boltzmann_machine import RestrictedBoltzmannMachine
-
 from utilities import tile_raster_images
+
 
 class RestrictedBoltzmannMachineTrainer(Trainer):
     """docstring for RestrictedBoltzmannMachine"""
@@ -23,40 +24,45 @@ class RestrictedBoltzmannMachineTrainer(Trainer):
             training_epochs
         )
 
+    def continue_training(self, state):
+        """docstring for continue_training"""
+        if state.continue_training():
+            # go through the training set
+            costs = [
+                self.training_function(batch_index)
+                for batch_index in xrange(self.n_train_batches)
+            ]
+
+            state.epoch_losses.append(numpy.mean(costs))
+
+            state.epoch += 1
+            
+            return True
+        else:
+            return False
 
     def train(self):
         """TODO: Factor this into Trainer"""
+        state = TrainingState(
+            0,
+            None,
+            None,
+            self.n_train_batches,
+            self.n_epochs
+        )
         plotting_time = 0.
-        n_train_batches = self.dataset.train_set_input.get_value(borrow=True).shape[0] / self.batch_size
-        epoch_costs = []
-        # go through training epochs
-        epoch = 0
-        while (epoch < self.n_epochs):
+
+        while state.continue_training():
             # go through the training set
-            costs = []
-            for batch_index in xrange(n_train_batches):
-                costs.append(self.training_function(batch_index))
+            costs = [
+                self.training_function(batch_index)
+                for batch_index in xrange(self.n_train_batches)
+            ]
 
-            epoch_costs.append(numpy.mean(costs))
-            # print 'Training epoch %d, cost is %f' % (epoch, numpy.mean(mean_cost))
-        
-            # Plot filters after each training epoch
-            plotting_start = time.clock()
-            # Construct image from the weight matrix
-            image = Image.fromarray(
-                tile_raster_images(
-                    X = self.rbm.weights.get_value(borrow = True).T,
-                    img_shape = (28, 28), 
-                    tile_shape = (10, 10),
-                    tile_spacing = (1, 1)
-                )
-            )
-            image.save('filters_at_epoch_%i.png' % epoch)
-            plotting_stop = time.clock()
-            plotting_time += (plotting_stop - plotting_start)
+            state.epoch_losses.append(numpy.mean(costs))
 
-            epoch += 1
-        return epoch_costs, plotting_time
+            state.epoch += 1
+        return state.epoch_losses
 
 
     def compiled_training_function(self, classifier, minibatch_index, inputs, persistent_chain, learning_rate):
@@ -193,7 +199,20 @@ if __name__ == '__main__':
     rbm.initialize()
 
     start_time = time.clock()
-    epoch_costs, plotting_time = rbm.train()
+    state = rbm.start_training()
+    while rbm.continue_training(state):
+        plotting_start = time.clock()
+        image = Image.fromarray(
+            tile_raster_images(
+                X=state.rbm.weights.get_value(borrow = True).T,
+                img_shape=(28, 28), 
+                tile_shape=(10, 10),
+                tile_spacing=(1, 1)
+            )
+        )
+        image.save('filters_at_epoch_%i.png' % epoch)
+        plotting_stop = time.clock()
+        plotting_time += (plotting_stop - plotting_start)
     end_time = time.clock()
 
     pretraining_time = (end_time - start_time) - plotting_time

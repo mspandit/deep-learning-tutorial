@@ -23,10 +23,6 @@ class TrainingState(object):
         """docstring for continue_training"""
         return (self.epoch < self.n_epochs) and (not self.done_looping)
 
-    def do_validate(self):
-        """docstring for do_validate"""
-        return (self.iter + 1) % self.validation_frequency == 0
-
     def consider(self, mean_validation_loss, mean_test_loss):
         """docstring for validate"""
         if (self.iter + 1) % self.validation_frequency == 0:

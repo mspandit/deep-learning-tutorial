@@ -109,8 +109,16 @@ class TestTutorials(unittest.TestCase):
     def test_restricted_boltzmann_machine(self):
         rbm = RestrictedBoltzmannMachineTrainer(self.dataset, training_epochs = 1, batch_size = 2)
         rbm.initialize(n_chains = 2, n_samples = 2, n_hidden = 5)
-        epoch_costs, plotting_time = rbm.train()
+        epoch_costs = rbm.train()
         self.assertEqual(epoch_costs, [-174.86070176730175])
+        
+    def test_restricted_boltzmann_machine_incremental(self):
+        rbm = RestrictedBoltzmannMachineTrainer(self.dataset, training_epochs = 1, batch_size = 2)
+        rbm.initialize(n_chains = 2, n_samples = 2, n_hidden = 5)
+        state = rbm.start_training()
+        while rbm.continue_training(state):
+            pass
+        self.assertEqual(state.epoch_losses, [-174.86070176730175])
 
     def test_stacked_denoising_autoencoder(self):
         sda = StackedDenoisingAutoencoderTrainer(self.dataset, pretraining_epochs = 1, n_epochs = 1, batch_size = 2)
