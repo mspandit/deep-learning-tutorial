@@ -1,3 +1,8 @@
+import os
+import sys
+import time
+import argparse
+
 import numpy
 import theano
 import theano.tensor as Tensor
@@ -5,10 +10,26 @@ from data_set import DataSet
 from trainer import Trainer
 from stacked_denoising_autoencoder import StackedDenoisingAutoencoder
 
+class StackedDenoisingAutoencoderPretrainingState(object):
+    """docstring for StackedDenoisingAutoencoderPretrainingState"""
+    def __init__(self, n_layers, pretraining_epochs):
+        super(StackedDenoisingAutoencoderPretrainingState, self).__init__()
+        self.corruption_levels = [(i + 1) * 0.1 for i in xrange(n_layers)]
+        self.layer_epoch_combos = [[i, j] for i in xrange(n_layers) for j in xrange(pretraining_epochs)]
+        self.layer_epoch_costs = []
+        self.layer_epoch_index = 0
+
+    def continue_pretraining(self):
+        """docstring for continue_pretraining"""
+        return self.layer_epoch_index < len(self.layer_epoch_combos)
+
+    def current_layer(self):
+        """docstring for current_layer"""
+        return self.layer_epoch_combos[self.layer_epoch_index][0]
+
 
 class StackedDenoisingAutoencoderTrainer(Trainer):
     """docstring for StackedDenoisingAutoencoder"""
-
 
     def __init__(
         self,
@@ -116,13 +137,34 @@ class StackedDenoisingAutoencoderTrainer(Trainer):
             inputs,
             outputs
         )
-    
+
+
+    def start_pretraining(self):
+        """docstring for start_pretraining"""
+        return StackedDenoisingAutoencoderPretrainingState(self.sda.n_layers, self.pretraining_epochs)
+
+    def continue_pretraining(self, state):
+        """docstring for continue_pretraining"""
+        if state.continue_pretraining():
+            layer_costs = [
+                self.pretraining_fns[state.current_layer()](
+                    minibatch_index=batch_index,
+                    corruption=state.corruption_levels[state.current_layer()],
+                    lr=self.pretrain_lr
+                )
+                for batch_index in xrange(self.n_train_batches)
+            ]
+            state.layer_epoch_costs.append(numpy.mean(layer_costs))
+            state.layer_epoch_index += 1
+            return True
+        else:
+            return False
 
     def pretrain(self):
         """TODO: Factor this into Trainer."""
     
         ## Pre-train layer-wise
-        corruption_levels = [.1, .2, .3]
+        corruption_levels = [(i + 1) * 0.1 for i in xrange(self.sda.n_layers)]
         layer_epoch_costs = []
         for layer_index in xrange(self.sda.n_layers):
             # go through pretraining epochs
@@ -192,19 +234,41 @@ class StackedDenoisingAutoencoderTrainer(Trainer):
 
 
 if __name__ == '__main__':
+    argparser = argparse.ArgumentParser(
+        description='Demonstrate Stacked Denoising Autoencoder'
+    )
+    argparser.add_argument(
+        '--pretraining-epochs',
+        dest='pretraining_epochs',
+        type=int,
+        default='1000',
+        help="number of epochs to run the pre-training (default: 1000)"
+    )
+    
     dataset = DataSet()
     dataset.load()
-    sda = StackedDenoisingAutoencoderTrainer(dataset)
-    sda.preinitialize()
+    trainer = StackedDenoisingAutoencoderTrainer(dataset, pretraining_epochs=argparser.parse_args().pretraining_epochs)
+    trainer.preinitialize()
     start_time = time.clock()
-    layer_epoch_costs = sda.pretrain()
+    trainer.start_pretraining()
+    while (trainer.continue_pretraining()):
+        print(
+            'Training layer %d epoch %d, cost %f'
+            % (
+                trainer.layer_epoch_combos[trainer.layer_epoch_index - 1][0],
+                trainer.layer_epoch_combos[trainer.layer_epoch_index - 1][1],
+                trainer.layer_epoch_costs[-1]
+            )
+        ) 
     end_time = time.clock()
     print >> sys.stderr, ('The pretraining code for file ' +
                           os.path.split(__file__)[1] +
                           ' ran for %.2fm' % ((end_time - start_time) / 60.))
-    sda.initialize()
+    
+    layer_epoch_costs = trainer.pretrain()
+    trainer.initialize()
     start_time = time.clock()
-    epoch_validation_losses, best_validation_loss, best_iter, test_score = sda.train(None)
+    epoch_validation_losses, best_validation_loss, best_iter, test_score = trainer.train(None)
     end_time = time.clock()
     print >> sys.stderr, ('The training code for file ' +
                           os.path.split(__file__)[1] +

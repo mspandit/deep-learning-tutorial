@@ -14,6 +14,20 @@ from trainer import Trainer
 from denoising_autoencoder import DenoisingAutoencoder
 
 
+class DenoisingAutoencoderTrainingState(object):
+    """docstring for DenoisingAutoencoderTrainingState"""
+
+    def __init__(self, n_epochs):
+        super(DenoisingAutoencoderTrainingState, self).__init__()
+        self.costs = []
+        self.epoch = 0
+        self.n_epochs = n_epochs
+
+    def continue_training(self):
+        """docstring for continue_training"""
+        return self.epoch < self.n_epochs
+
+
 class DenoisingAutoencoderTrainer(Trainer):
     """docstring for DenoisingAutoencoder"""
 
@@ -37,42 +51,35 @@ class DenoisingAutoencoderTrainer(Trainer):
 
     def start_training(self):
         """docstring for start_training"""
-        self.costs = []
-        self.epoch = 0
+        return DenoisingAutoencoderTrainingState(n_epochs=self.n_epochs)
 
-    def continue_training(self):
+    def continue_training(self, state):
         """docstring for continue_training"""
-        if self.epoch < self.n_epochs:
+        if state.continue_training():
             c = [
                 self.training_function(batch_index)
                 for batch_index in xrange(self.n_train_batches)
             ]
-            self.costs.append(numpy.mean(c))
-            self.epoch += 1
+            state.costs.append(numpy.mean(c))
+            state.epoch += 1
             return True
         else:
             return False
 
     def train(self):
         """TODO: Factor this into Trainer"""
-        ############
-        # TRAINING #
-        ############
-
-        # go through training epochs
-        costs = []
-        epoch = 0
-        while epoch < self.n_epochs:
+        state = DenoisingAutoencoderTrainingState(n_epochs=self.n_epochs)
+        while state.continue_training():
             # go through trainng set
             c = [
                 self.training_function(batch_index)
                 for batch_index in xrange(self.n_train_batches)
             ]
             # print 'Training epoch %d, cost %f' % (epoch, numpy.mean(c))
-            costs.append(numpy.mean(c))
+            state.costs.append(numpy.mean(c))
         
-            epoch += 1
-        return costs
+            state.epoch += 1
+        return state.costs
 
 
     def compiled_training_function(self, classifier, minibatch_index, inputs, learning_rate, corruption_level):

@@ -22,8 +22,12 @@ References:
 
 """
 
-import numpy
+import os
+import sys
+import time
+import argparse
 
+import numpy
 import theano
 import theano.tensor as Tensor
 from theano.tensor.signal import downsample
@@ -100,12 +104,22 @@ import time
 from data_set import DataSet
 
 if __name__ == '__main__':
+    argparser = argparse.ArgumentParser(
+        description='Demonstrate Convolutional Multilayer Perceptron'
+    )
+    argparser.add_argument('--epochs', dest='epochs', type=int, default='200', help='number of epochs to run the training (default: 200)')
+
     dataset = DataSet()
     dataset.load()
-    lenet5 = ConvolutionalMultilayerPerceptronTrainer(dataset)
-    lenet5.initialize()
+    trainer = ConvolutionalMultilayerPerceptronTrainer(dataset, n_epochs=argparser.parse_args().epochs)
+    trainer.initialize()
+    trainer.start_training()
     start_time = time.clock()
-    epoch_losses, best_validation_loss, best_iter, test_score = lenet5.train()
+    while (trainer.continue_training()):
+        print (
+            'epoch %d, validation error %f%%'
+            % (trainer.epoch, trainer.epoch_losses[-1][0] * 100.0)
+        )
     end_time = time.clock()
     print >> sys.stderr, (
         'The code for file '
@@ -116,5 +130,5 @@ if __name__ == '__main__':
     print(
         'Best validation score of %f %% obtained at iteration %i, with '
         'test performance %f %%'
-        % (best_validation_loss * 100., best_iter + 1, test_score * 100.)
+        % (trainer.best_validation_loss * 100., trainer.best_iter + 1, trainer.test_score * 100.)
     )

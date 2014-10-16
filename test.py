@@ -22,6 +22,15 @@ class TestTutorials(unittest.TestCase):
         epoch_losses, best_validation_loss, best_iter, test_score = lenet5.train(patience = 10000, patience_increase = 2, improvement_threshold = 0.995)
         self.assertEqual(epoch_losses, [[0.52000000000000002, 49]])
         self.assertEqual(test_score, 0.45000000000000001)
+
+    def test_convolutional_multilayer_perceptron_incremental(self):
+        lenet5 = ConvolutionalMultilayerPerceptronTrainer(self.dataset, n_epochs = 1, batch_size = 2)
+        lenet5.initialize(nkerns = [2, 5])
+        state = lenet5.start_training(patience = 10000, patience_increase = 2, improvement_threshold = 0.995)
+        while lenet5.continue_training(state):
+            pass
+        self.assertEqual(state.epoch_losses, [[0.52000000000000002, 49]])
+        self.assertEqual(state.test_score, 0.45000000000000001)
         
     def test_deep_belief_network(self):
         dbn = DeepBeliefNetworkTrainer(self.dataset, batch_size = 2, pretraining_epochs = 1, training_epochs = 1)
@@ -49,11 +58,18 @@ class TestTutorials(unittest.TestCase):
     def test_logistic(self):
         lc = LogisticTrainer(self.dataset, batch_size = 2, n_epochs = 1)
         lc.initialize()
-        lc.start_training(patience=5000, patience_increase=2, improvement_threshold=0.995)
-        while lc.continue_training():
+        epoch_losses, best_validation_loss, best_iter, test_score = lc.train(patience = 5000, patience_increase = 2, improvement_threshold = 0.995)
+        self.assertEqual(epoch_losses, [[0.40000000000000002, 49]])
+        self.assertEqual(test_score, 0.30)
+        
+    def test_logistic_incremental(self):
+        lc = LogisticTrainer(self.dataset, batch_size=2, n_epochs=1)
+        lc.initialize()
+        state = lc.start_training(patience=5000, patience_increase=2, improvement_threshold=0.995)
+        while lc.continue_training(state):
             pass
-        self.assertEqual(lc.epoch_losses, [[0.40000000000000002, 49]])
-        self.assertEqual(lc.test_score, 0.30)
+        self.assertEqual(state.epoch_losses, [[0.40000000000000002, 49]])
+        self.assertEqual(state.test_score, 0.30)
 
     def test_multilayer_perceptron(self):
         mp = MultilayerPerceptronTrainer(self.dataset, n_epochs = 1, batch_size = 2)
@@ -61,6 +77,15 @@ class TestTutorials(unittest.TestCase):
         epoch_losses, best_validation_loss, best_iter, test_score = mp.train(patience = 10000, patience_increase = 2, improvement_threshold = 0.995)
         self.assertEqual(epoch_losses, [[0.54, 49]])
         self.assertEqual(test_score, 0.52)
+
+    def test_multilayer_perceptron_incremental(self):
+        mp = MultilayerPerceptronTrainer(self.dataset, n_epochs = 1, batch_size = 2)
+        mp.initialize()
+        state = mp.start_training(patience = 10000, patience_increase = 2, improvement_threshold = 0.995)
+        while mp.continue_training(state):
+            pass
+        self.assertEqual(state.epoch_losses, [[0.54, 49]])
+        self.assertEqual(state.test_score, 0.52)
         
     def test_restricted_boltzmann_machine(self):
         rbm = RestrictedBoltzmannMachineTrainer(self.dataset, training_epochs = 1, batch_size = 2)
@@ -74,11 +99,27 @@ class TestTutorials(unittest.TestCase):
         layer_epoch_costs = sda.pretrain()
         self.assertEqual(layer_epoch_costs, [[328.15852933515004], [771.56755018914123], [661.65193991637716]])
         sda.initialize()
-        validation_losses, best_validation_loss, best_iter, test_score = sda.train(None)
-        self.assertEqual(validation_losses, [[0.73, 49]])
+        epoch_losses, best_validation_loss, best_iter, test_score = sda.train(None)
+        self.assertEqual(epoch_losses, [[0.73, 49]])
         self.assertEqual(best_validation_loss, 0.73)
         self.assertEqual(best_iter, 49)
         self.assertEqual(test_score, 0.67)
+
+    def test_stacked_denoising_autoencoder_incremental(self):
+        sda = StackedDenoisingAutoencoderTrainer(self.dataset, pretraining_epochs = 1, n_epochs = 1, batch_size = 2)
+        sda.preinitialize()
+        state = sda.start_pretraining()
+        while sda.continue_pretraining(state):
+            pass
+        self.assertEqual(state.layer_epoch_costs, [[328.15852933515004], [771.56755018914123], [661.65193991637716]])
+        sda.initialize()
+        state = sda.start_training()
+        while sda.continue_training(state):
+            pass
+        self.assertEqual(state.epoch_losses, [[0.73, 49]])
+        self.assertEqual(state.best_validation_loss, 0.73)
+        self.assertEqual(state.best_iter, 49)
+        self.assertEqual(state.test_score, 0.67)
         
 if __name__ == '__main__':
     unittest.main()
