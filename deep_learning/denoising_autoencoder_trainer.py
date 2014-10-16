@@ -34,7 +34,24 @@ class DenoisingAutoencoderTrainer(Trainer):
             training_epochs
         )
         self.learning_rate = learning_rate
-        
+
+    def start_training(self):
+        """docstring for start_training"""
+        self.costs = []
+        self.epoch = 0
+
+    def continue_training(self):
+        """docstring for continue_training"""
+        if self.epoch < self.n_epochs:
+            c = [
+                self.training_function(batch_index)
+                for batch_index in xrange(self.n_train_batches)
+            ]
+            self.costs.append(numpy.mean(c))
+            self.epoch += 1
+            return True
+        else:
+            return False
 
     def train(self):
         """TODO: Factor this into Trainer"""
@@ -104,12 +121,38 @@ class DenoisingAutoencoderTrainer(Trainer):
 if __name__ == '__main__':
     dataset = DataSet()
     dataset.load()
-    da = DenoisingAutoencoderTrainer(dataset)
-    if not os.path.isdir(output_folder):
-        os.makedirs(output_folder)
-    os.chdir(output_folder)
+    trainer = DenoisingAutoencoderTrainer(dataset)
+
+    if not os.path.isdir('dA_plots'):
+        os.makedirs('dA_plots')
+    os.chdir('dA_plots')
     
-    uncorrupt_costs = self.initialize()
-    corrupt_costs = self.initialize(corruption_level = 0.3)
+    trainer.initialize()
+    trainer.start_training()
+
+    start_time = time.clock()
+    while (trainer.continue_training()):
+        print 'Training epoch %d, cost %f' % (trainer.epoch, trainer.costs[-1])
+    end_time = time.clock()
+    print >> sys.stderr, (
+        'The code for file '
+        + os.path.split(__file__)[1]
+        + ' ran for %.2fm'
+        % ((end_time - start_time) / 60.)
+    )
+
+    trainer.initialize(corruption_level = 0.3)
+    trainer.start_training()
+
+    start_time = time.clock()
+    while (trainer.continue_training()):
+        print 'Training epoch %d, cost %f' % (trainer.epoch, trainer.costs[-1])
+    end_time = time.clock()
+    print >> sys.stderr, (
+        'The code for file '
+        + os.path.split(__file__)[1]
+        + ' ran for %.2fm'
+        % ((end_time - start_time) / 60.)
+    )
 
     os.chdir('../')

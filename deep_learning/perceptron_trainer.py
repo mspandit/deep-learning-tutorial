@@ -1,3 +1,5 @@
+import os
+import sys
 import time
 import numpy
 import theano.tensor as Tensor
@@ -63,18 +65,31 @@ from data_set import DataSet
 if __name__ == '__main__':
     dataset = DataSet()
     dataset.load()
-    mlp = MultilayerPerceptronTrainer(dataset)
-    mlp.initialize()
-    start_time = time.clock()
-    epoch_losses, best_validation_loss, best_iter, test_score = mlp.train(
+    trainer = MultilayerPerceptronTrainer(dataset, n_epochs=1000)
+    trainer.initialize()
+    trainer.start_training(
         patience=10000,
         patience_increase=2,
         improvement_threshold=0.995
     )
+    start_time = time.clock()
+    while (trainer.continue_training()):
+        print (
+            'epoch %d, validation error %f%%'
+            % (trainer.epoch, trainer.epoch_losses[-1][0] * 100.0)
+        )
     end_time = time.clock()
     print >> sys.stderr, ('The code for file ' +
                           os.path.split(__file__)[1] +
                           ' ran for %.2fm' % ((end_time - start_time) / 60.))
-    print(('Optimization complete. Best validation score of %f %% '
-           'obtained at iteration %i, with test performance %f %%') %
-          (best_validation_loss * 100., best_iter + 1, test_score * 100.))
+    print(
+        (
+            'Optimization complete. Best validation score of %f %% '
+            'obtained at iteration %i, with test performance %f %%'
+        ) 
+        % (
+            trainer.best_validation_loss * 100.,
+            trainer.best_iter + 1,
+            trainer.test_score * 100.
+        )
+    )

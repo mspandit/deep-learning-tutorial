@@ -65,7 +65,7 @@ class Trainer(object):
                                 self.iter * self.patience_increase
                             )
                         self.best_validation_loss = this_validation_loss
-                        self.best_iter = iter
+                        self.best_iter = self.iter
                         self.test_score = self.mean_test_loss()
 
                 if self.patience <= self.iter:
