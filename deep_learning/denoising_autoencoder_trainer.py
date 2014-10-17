@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import argparse
 import Image
 
 import numpy
@@ -106,7 +107,7 @@ class DenoisingAutoencoderTrainer(Trainer):
         rng = numpy.random.RandomState(123)
         theano_rng = RandomStreams(rng.randint(2 ** 30))
 
-        classifier = DenoisingAutoencoder(
+        self.classifier = DenoisingAutoencoder(
             numpy_rng=rng,
             theano_rng=theano_rng,
             n_visible=28 * 28,
@@ -114,32 +115,43 @@ class DenoisingAutoencoderTrainer(Trainer):
         )
 
         self.training_function = self.compiled_training_function(
-            classifier,
+            self.classifier,
             minibatch_index,
             inputs,
             learning_rate,
             corruption_level
         )
 
-        image = Image.fromarray(tile_raster_images(X=classifier.W.get_value(borrow=True).T, img_shape=(28, 28), tile_shape=(10, 10), tile_spacing=(1, 1)))
+        image = Image.fromarray(tile_raster_images(X=self.classifier.W.get_value(borrow=True).T, img_shape=(28, 28), tile_shape=(10, 10), tile_spacing=(1, 1)))
         image.save('filters_corruption_0.png')
 
 
 if __name__ == '__main__':
+    argparser = argparse.ArgumentParser(
+        description='Demonstrate Denoising Autoencoder'
+    )
+    argparser.add_argument(
+        '--training-epochs',
+        dest='epochs',
+        type=int,
+        default='200',
+        help='number of epochs to run the training (default: 15)'
+    )
+
     dataset = DataSet()
     dataset.load()
-    trainer = DenoisingAutoencoderTrainer(dataset)
+    trainer = DenoisingAutoencoderTrainer(dataset, training_epochs=argparser.parse_args().epochs)
 
     if not os.path.isdir('dA_plots'):
         os.makedirs('dA_plots')
     os.chdir('dA_plots')
     
     trainer.initialize()
-    trainer.start_training()
+    state = trainer.start_training()
 
     start_time = time.clock()
-    while (trainer.continue_training()):
-        print 'Training epoch %d, cost %f' % (trainer.epoch, trainer.costs[-1])
+    while (trainer.continue_training(state)):
+        print 'Training epoch %d, cost %f' % (state.epoch, state.costs[-1])
     end_time = time.clock()
     print >> sys.stderr, (
         'The code for file '
@@ -149,11 +161,11 @@ if __name__ == '__main__':
     )
 
     trainer.initialize(corruption_level = 0.3)
-    trainer.start_training()
+    state = trainer.start_training()
 
     start_time = time.clock()
-    while (trainer.continue_training()):
-        print 'Training epoch %d, cost %f' % (trainer.epoch, trainer.costs[-1])
+    while (trainer.continue_training(state)):
+        print 'Training epoch %d, cost %f' % (state.epoch, state.costs[-1])
     end_time = time.clock()
     print >> sys.stderr, (
         'The code for file '

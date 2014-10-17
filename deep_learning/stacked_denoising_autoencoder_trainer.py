@@ -106,7 +106,7 @@ class StackedDenoisingAutoencoderTrainer(Trainer):
         outputs = Tensor.ivector('outputs')
 
         # construct the stacked denoising autoencoder class
-        self.sda = StackedDenoisingAutoencoder(
+        self.classifier = StackedDenoisingAutoencoder(
             numpy_rng = numpy.random.RandomState(89677), 
             n_ins = 28 * 28,
             hidden_layers_sizes = [1000, 1000, 1000],
@@ -114,7 +114,7 @@ class StackedDenoisingAutoencoderTrainer(Trainer):
         )
 
         self.pretraining_fns = self.compiled_pretraining_functions(
-            self.sda,
+            self.classifier,
             minibatch_index,
             self.dataset.train_set_input,
             inputs,
@@ -141,7 +141,7 @@ class StackedDenoisingAutoencoderTrainer(Trainer):
 
     def start_pretraining(self):
         """docstring for start_pretraining"""
-        return StackedDenoisingAutoencoderTrainer.State(self.sda.n_layers, self.pretraining_epochs)
+        return StackedDenoisingAutoencoderTrainer.State(self.classifier.n_layers, self.pretraining_epochs)
 
     def continue_pretraining(self, state):
         """docstring for continue_pretraining"""
@@ -164,9 +164,9 @@ class StackedDenoisingAutoencoderTrainer(Trainer):
         """TODO: Factor this into Trainer."""
     
         ## Pre-train layer-wise
-        corruption_levels = [(i + 1) * 0.1 for i in xrange(self.sda.n_layers)]
+        corruption_levels = [(i + 1) * 0.1 for i in xrange(self.classifier.n_layers)]
         layer_epoch_costs = []
-        for layer_index in xrange(self.sda.n_layers):
+        for layer_index in xrange(self.classifier.n_layers):
             # go through pretraining epochs
             epoch_costs = []
             epoch = 0
@@ -213,20 +213,20 @@ class StackedDenoisingAutoencoderTrainer(Trainer):
         minibatch_index = Tensor.lscalar('minibatch_index')
 
         self.training_function = self.compiled_training_function(
-            self.sda,
+            self.classifier,
             minibatch_index,
             inputs,
             outputs,
             finetune_lr
         )
         self.validation_eval_function = self.compiled_validation_function(
-            self.sda,
+            self.classifier,
             minibatch_index,
             inputs,
             outputs
         )
         self.test_eval_function = self.compiled_test_function(
-            self.sda,
+            self.classifier,
             minibatch_index,
             inputs,
             outputs
@@ -241,23 +241,34 @@ if __name__ == '__main__':
         '--pretraining-epochs',
         dest='pretraining_epochs',
         type=int,
+        default='15',
+        help="number of epochs to run the pre-training (default: 15)"
+    )
+    argparser.add_argument(
+        '--training-epochs',
+        dest='training_epochs',
+        type=int,
         default='1000',
-        help="number of epochs to run the pre-training (default: 1000)"
+        help="number of epochs to run the training (default: 1000)"
     )
     
     dataset = DataSet()
     dataset.load()
-    trainer = StackedDenoisingAutoencoderTrainer(dataset, pretraining_epochs=argparser.parse_args().pretraining_epochs)
+    trainer = StackedDenoisingAutoencoderTrainer(
+        dataset,
+        pretraining_epochs=argparser.parse_args().pretraining_epochs,
+        n_epochs=argparser.parse_args().training_epochs
+    )
     trainer.preinitialize()
     start_time = time.clock()
-    trainer.start_pretraining()
-    while (trainer.continue_pretraining()):
+    state = trainer.start_pretraining()
+    while (trainer.continue_pretraining(state)):
         print(
-            'Training layer %d epoch %d, cost %f'
+            'Pretraining layer %d epoch %d, cost %f'
             % (
-                trainer.layer_epoch_combos[trainer.layer_epoch_index - 1][0],
-                trainer.layer_epoch_combos[trainer.layer_epoch_index - 1][1],
-                trainer.layer_epoch_costs[-1]
+                state.layer_epoch_combos[state.layer_epoch_index - 1][0],
+                state.layer_epoch_combos[state.layer_epoch_index - 1][1],
+                state.layer_epoch_costs[-1]
             )
         ) 
     end_time = time.clock()
@@ -265,14 +276,18 @@ if __name__ == '__main__':
                           os.path.split(__file__)[1] +
                           ' ran for %.2fm' % ((end_time - start_time) / 60.))
     
-    layer_epoch_costs = trainer.pretrain()
     trainer.initialize()
     start_time = time.clock()
-    epoch_validation_losses, best_validation_loss, best_iter, test_score = trainer.train(None)
+    state = trainer.start_training()
+    while (trainer.continue_training(state)):
+        print (
+            'Training epoch %d, validation error %f%%'
+            % (state.epoch, state.epoch_losses[-1][0] * 100.0)
+        )
     end_time = time.clock()
     print >> sys.stderr, ('The training code for file ' +
                           os.path.split(__file__)[1] +
                           ' ran for %.2fm' % ((end_time - start_time) / 60.))
-    print(('Optimization complete with best validation score of %f %%,'
-           'with test performance %f %%') %
+    print(('Optimization complete with best validation score of %f%%,'
+           'with test performance %f%%') %
                  (best_validation_loss * 100., test_score * 100.))

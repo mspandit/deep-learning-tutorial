@@ -1,6 +1,8 @@
 import os
 import sys
 import time
+import argparse
+
 import numpy
 import theano.tensor as Tensor
 from trainer import Trainer
@@ -30,7 +32,7 @@ class MultilayerPerceptronTrainer(Trainer):
 
         rng = numpy.random.RandomState(1234)
 
-        classifier = MultilayerPerceptronClassifier(
+        self.classifier = MultilayerPerceptronClassifier(
             rng=rng,
             n_in=28 * 28,
             n_hidden=n_hidden,
@@ -38,21 +40,21 @@ class MultilayerPerceptronTrainer(Trainer):
         )
 
         self.test_eval_function = self.compiled_test_function(
-            classifier,
+            self.classifier,
             minibatch_index,
             inputs,
             outputs
         )
         
         self.validation_eval_function = self.compiled_validation_function(
-            classifier,
+            self.classifier,
             minibatch_index,
             inputs,
             outputs
         )
         
         self.training_function = self.compiled_training_function(
-            classifier,
+            self.classifier,
             minibatch_index,
             inputs,
             outputs,
@@ -63,20 +65,31 @@ class MultilayerPerceptronTrainer(Trainer):
 from data_set import DataSet
 
 if __name__ == '__main__':
+    argparser = argparse.ArgumentParser(
+        description='Demonstrate Multilayer Perceptron'
+    )
+    argparser.add_argument(
+        '--training-epochs',
+        dest='epochs',
+        type=int,
+        default='1000',
+        help='number of epochs to run the training (default: 1000)'
+    )
+
     dataset = DataSet()
     dataset.load()
-    trainer = MultilayerPerceptronTrainer(dataset, n_epochs=1000)
+    trainer = MultilayerPerceptronTrainer(dataset, n_epochs=argparser.parse_args().epochs)
     trainer.initialize()
-    trainer.start_training(
+    state = trainer.start_training(
         patience=10000,
         patience_increase=2,
         improvement_threshold=0.995
     )
     start_time = time.clock()
-    while (trainer.continue_training()):
+    while (trainer.continue_training(state)):
         print (
             'epoch %d, validation error %f%%'
-            % (trainer.epoch, trainer.epoch_losses[-1][0] * 100.0)
+            % (state.epoch, state.epoch_losses[-1][0] * 100.0)
         )
     end_time = time.clock()
     print >> sys.stderr, ('The code for file ' +
@@ -84,12 +97,12 @@ if __name__ == '__main__':
                           ' ran for %.2fm' % ((end_time - start_time) / 60.))
     print(
         (
-            'Optimization complete. Best validation score of %f %% '
-            'obtained at iteration %i, with test performance %f %%'
+            'Optimization complete. Best validation score of %f%% '
+            'obtained at iteration %i, with test performance %f%%'
         ) 
         % (
-            trainer.best_validation_loss * 100.,
-            trainer.best_iter + 1,
-            trainer.test_score * 100.
+            state.best_validation_loss * 100.,
+            state.best_iter + 1,
+            state.test_score * 100.
         )
     )

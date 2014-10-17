@@ -4,8 +4,9 @@ import numpy
 
 class TrainingState(object):
     """docstring for TrainingState"""
-    def __init__(self, patience, patience_increase, improvement_threshold, n_train_batches, n_epochs):
+    def __init__(self, classifier, patience, patience_increase, improvement_threshold, n_train_batches, n_epochs):
         super(TrainingState, self).__init__()
+        self.classifier = classifier
         self.patience = patience
         self.patience_increase = patience_increase
         self.improvement_threshold = improvement_threshold
@@ -72,6 +73,7 @@ class Trainer(object):
     ):
         """docstring for start_training"""
         return TrainingState(
+            self.classifier,
             patience,
             patience_increase,
             improvement_threshold,

@@ -47,7 +47,12 @@ class TestTutorials(unittest.TestCase):
         self.assertEqual(test_score, 0.76)
 
     def test_deep_belief_network_incremental(self):
-        dbn = DeepBeliefNetworkTrainer(self.dataset, batch_size = 2, pretraining_epochs = 1, training_epochs = 1)
+        dbn = DeepBeliefNetworkTrainer(
+            self.dataset,
+            batch_size=2,
+            pretraining_epochs=1,
+            training_epochs=1
+        )
         dbn.initialize()
         state = dbn.start_pretraining()
         while dbn.continue_pretraining(state):
@@ -73,7 +78,7 @@ class TestTutorials(unittest.TestCase):
         self.assertEqual(state.test_score, 0.76)
 
     def test_denoising_autoencoder(self):
-        da = DenoisingAutoencoderTrainer(self.dataset, training_epochs = 1, batch_size = 2)
+        da = DenoisingAutoencoderTrainer(self.dataset, training_epochs=1, batch_size=2)
         da.initialize()
         uncorrupt_costs = da.train()
         self.assertEqual(uncorrupt_costs, [149.16503228187111])
@@ -85,7 +90,7 @@ class TestTutorials(unittest.TestCase):
         )
 
     def test_denoising_autoencoder_incremental(self):
-        da = DenoisingAutoencoderTrainer(self.dataset, training_epochs = 1, batch_size = 2)
+        da = DenoisingAutoencoderTrainer(self.dataset, training_epochs=1, batch_size=2)
         da.initialize()
         state = da.start_training()
         while da.continue_training(state):
@@ -101,7 +106,7 @@ class TestTutorials(unittest.TestCase):
         )
         
     def test_logistic(self):
-        lc = LogisticTrainer(self.dataset, batch_size = 2, n_epochs = 1)
+        lc = LogisticTrainer(self.dataset, batch_size=2, n_epochs=1)
         lc.initialize()
         epoch_losses, best_validation_loss, best_iter, test_score = lc.train(patience = 5000, patience_increase = 2, improvement_threshold = 0.995)
         self.assertEqual(epoch_losses, [[0.40000000000000002, 49]])
@@ -147,7 +152,12 @@ class TestTutorials(unittest.TestCase):
         self.assertEqual(state.epoch_losses, [-174.86070176730175])
 
     def test_stacked_denoising_autoencoder(self):
-        sda = StackedDenoisingAutoencoderTrainer(self.dataset, pretraining_epochs = 1, n_epochs = 1, batch_size = 2)
+        sda = StackedDenoisingAutoencoderTrainer(
+            self.dataset,
+            pretraining_epochs=1,
+            n_epochs=1,
+            batch_size=2
+        )
         sda.preinitialize()
         layer_epoch_costs = sda.pretrain()
         self.assertEqual(layer_epoch_costs, [[328.15852933515004], [771.56755018914123], [661.65193991637716]])

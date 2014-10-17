@@ -1,3 +1,7 @@
+import os
+import sys
+import time
+
 import numpy
 import theano.tensor as Tensor
 from trainer import Trainer
@@ -65,7 +69,7 @@ class DeepBeliefNetworkTrainer(Trainer):
 
     def start_pretraining(self):
         """docstring for start_pretraining"""
-        return DeepBeliefNetworkTrainer.State(self.dbn.n_layers, self.n_train_batches, self.pretraining_epochs)
+        return DeepBeliefNetworkTrainer.State(self.classifier.n_layers, self.n_train_batches, self.pretraining_epochs)
 
     def continue_pretraining(self, state):
         """docstring for continue_pretraining"""
@@ -89,7 +93,7 @@ class DeepBeliefNetworkTrainer(Trainer):
         layer_epoch_costs = []
 
         ## Pre-train layer-wise
-        for i in xrange(self.dbn.n_layers):
+        for i in xrange(self.classifier.n_layers):
             epoch_costs = []
             # go through pretraining epochs
             for epoch in xrange(self.pretraining_epochs):
@@ -133,14 +137,14 @@ class DeepBeliefNetworkTrainer(Trainer):
         inputs = Tensor.matrix('inputs')
         outputs = Tensor.ivector('outputs')
 
-        self.dbn = DBN(
+        self.classifier = DBN(
             numpy_rng=numpy.random.RandomState(123),
             n_ins=28 * 28,
             hidden_layers_sizes=[1000, 1000, 1000],
             n_outs=10
         )
 
-        self.pretraining_fns = self.dbn.pretraining_functions(
+        self.pretraining_fns = self.classifier.pretraining_functions(
             inputs,
             train_set_input = self.dataset.train_set_input,
             batch_size = self.batch_size,
@@ -148,20 +152,20 @@ class DeepBeliefNetworkTrainer(Trainer):
         )
 
         self.training_function = self.compiled_training_function(
-            self.dbn,
+            self.classifier,
             minibatch_index,
             inputs,
             outputs,
             self.finetune_lr
         )
         self.validation_eval_function = self.compiled_validation_function(
-            self.dbn,
+            self.classifier,
             minibatch_index,
             inputs,
             outputs
         )
         self.test_eval_function = self.compiled_test_function(
-            self.dbn,
+            self.classifier,
             minibatch_index, 
             inputs,
             outputs
@@ -173,7 +177,7 @@ from data_set import DataSet
 if __name__ == '__main__':
     dataset = DataSet()
     dataset.load()
-    dbn = DeepBeliefNetwork(dataset)
+    dbn = DeepBeliefNetworkTrainer(dataset)
     dbn.initialize()
 
     start_time = time.clock()

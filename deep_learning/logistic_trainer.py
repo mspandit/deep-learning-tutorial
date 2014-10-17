@@ -1,6 +1,8 @@
 import os
 import sys
 import time
+import argparse
+
 import theano
 import theano.tensor as Tensor
 
@@ -24,22 +26,22 @@ class LogisticTrainer(Trainer):
         outputs = Tensor.ivector('outputs')
 
         # Each MNIST image has size 28*28
-        classifier = LogisticClassifier(input_units=28 * 28, output_units=10)
+        self.classifier = LogisticClassifier(input_units=28 * 28, output_units=10)
 
         self.test_eval_function = self.compiled_test_function(
-            classifier,
+            self.classifier,
             minibatch_index,
             inputs,
             outputs
         )
         self.validation_eval_function = self.compiled_validation_function(
-            classifier,
+            self.classifier,
             minibatch_index,
             inputs,
             outputs
         )
         self.training_function = self.compiled_training_function(
-            classifier,
+            self.classifier,
             minibatch_index,
             inputs,
             outputs,
@@ -47,16 +49,28 @@ class LogisticTrainer(Trainer):
         )
 
 if __name__ == '__main__':
+    argparser = argparse.ArgumentParser(
+        description='Demonstrate Logistic Regression'
+    )
+    argparser.add_argument(
+        '--training-epochs',
+        dest='epochs',
+        type=int,
+        default='1000',
+        help='number of epochs to run the training (default: 1000)'
+    )
+
     dataset = DataSet()
     dataset.load()
-    trainer = LogisticTrainer(dataset)
+    trainer = LogisticTrainer(dataset, n_epochs=argparser.parse_args().epochs)
+
     trainer.initialize()
-    trainer.start_training()
+    state = trainer.start_training()
     start_time = time.clock()
-    while (trainer.continue_training()):
+    while (trainer.continue_training(state)):
         print (
             'epoch %d, validation error %f%%'
-            % (trainer.epoch, trainer.epoch_losses[-1][0] * 100.0)
+            % (state.epoch, state.epoch_losses[-1][0] * 100.0)
         )
     end_time = time.clock()
         
@@ -70,6 +84,6 @@ if __name__ == '__main__':
             'Optimization completed with best validation score of %f%% '
             'and test performance %f%%'
         )
-        % (trainer.best_validation_loss * 100.0, trainer.test_score * 100.)
+        % (state.best_validation_loss * 100.0, state.test_score * 100.)
     )
     

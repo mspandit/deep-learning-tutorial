@@ -106,7 +106,7 @@ class RestrictedBoltzmannMachineTrainer(Trainer):
 
         rng = numpy.random.RandomState(123)
 
-        self.rbm = RestrictedBoltzmannMachine(
+        self.classifier = RestrictedBoltzmannMachine(
             n_visible=28 * 28,
             n_hidden=n_hidden,
             numpy_rng=rng,
@@ -114,7 +114,7 @@ class RestrictedBoltzmannMachineTrainer(Trainer):
         )
 
         self.training_function = self.compiled_training_function(
-            self.rbm,
+            self.classifier,
             minibatch_index,
             inputs,
             # initialize storage for the persistent chain (state = hidden
@@ -150,7 +150,7 @@ class RestrictedBoltzmannMachineTrainer(Trainer):
         # sample for plotting
         [presig_hids, hid_mfs, hid_samples, presig_vis,
          vis_mfs, vis_samples], updates =  \
-                            theano.scan(self.rbm.gibbs_vhv,
+                            theano.scan(self.classifier.gibbs_vhv,
                                     outputs_info=[None,  None, None, None,
                                                   None, persistent_vis_chain],
                                     n_steps=plot_every)
@@ -190,11 +190,11 @@ from data_set import DataSet
 if __name__ == '__main__':
     dataset = DataSet()
     dataset.load()
-    rbm = RestrictedBoltzmannMachine(dataset)
+    rbm = RestrictedBoltzmannMachineTrainer(dataset)
 
-    if not os.path.isdir(output_folder):
-        os.makedirs(output_folder)
-    os.chdir(output_folder)
+    if not os.path.isdir('rbm_plots'):
+        os.makedirs('rbm_plots')
+    os.chdir('rbm_plots')
 
     rbm.initialize()
 
@@ -204,7 +204,7 @@ if __name__ == '__main__':
         plotting_start = time.clock()
         image = Image.fromarray(
             tile_raster_images(
-                X=state.rbm.weights.get_value(borrow = True).T,
+                X=state.classifier.weights.get_value(borrow = True).T,
                 img_shape=(28, 28), 
                 tile_shape=(10, 10),
                 tile_spacing=(1, 1)
