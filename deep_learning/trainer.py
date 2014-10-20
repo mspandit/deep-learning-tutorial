@@ -108,6 +108,7 @@ class Trainer(object):
     ):
         """docstring for train"""
         state = TrainingState(
+            self.classifier,
             patience,
             patience_increase,
             improvement_threshold,

@@ -199,6 +199,7 @@ if __name__ == '__main__':
     rbm.initialize()
 
     start_time = time.clock()
+    plotting_time = 0
     state = rbm.start_training()
     while rbm.continue_training(state):
         plotting_start = time.clock()
@@ -210,7 +211,7 @@ if __name__ == '__main__':
                 tile_spacing=(1, 1)
             )
         )
-        image.save('filters_at_epoch_%i.png' % epoch)
+        image.save('filters_at_epoch_%i.png' % state.epoch)
         plotting_stop = time.clock()
         plotting_time += (plotting_stop - plotting_start)
     end_time = time.clock()

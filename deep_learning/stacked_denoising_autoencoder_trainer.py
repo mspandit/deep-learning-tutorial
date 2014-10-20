@@ -290,4 +290,4 @@ if __name__ == '__main__':
                           ' ran for %.2fm' % ((end_time - start_time) / 60.))
     print(('Optimization complete with best validation score of %f%%,'
            'with test performance %f%%') %
-                 (best_validation_loss * 100., test_score * 100.))
+                 (state.best_validation_loss * 100., state.test_score * 100.))
